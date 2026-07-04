@@ -57,39 +57,71 @@
                 v-text='dragHint'
             />
 
-            <!-- 적(RED) 선택 + 아군 공격자 있을 때: 사거리 판정 + 공격 지정 -->
+            <!-- 아군(BLUE): 공격 버튼 → 사거리 원 표시 + 대상 선택 -->
             <div
-                v-if='atk'
+                v-if='unit.side === "BLUE"'
+                class='wargame-attack mt-2 pt-2'
+            >
+                <button
+                    v-if='!inAttackMode'
+                    type='button'
+                    class='btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center'
+                    @click='store.enterAttackMode(unit.id)'
+                >
+                    <IconSword
+                        :size='16'
+                        stroke='1.5'
+                        class='me-1'
+                    />
+                    공격
+                </button>
+                <template v-else>
+                    <div class='text-warning fw-bold mb-1' style='font-size: 13px;'>
+                        🎯 공격 대상 선택 — 사거리(5km) 안의 적을 클릭
+                    </div>
+                    <button
+                        type='button'
+                        class='btn btn-outline-light btn-sm w-100'
+                        @click='store.exitAttackMode()'
+                    >
+                        취소
+                    </button>
+                </template>
+                <div
+                    v-if='myAttackTarget'
+                    class='mt-2 text-danger'
+                    style='font-size: 13px;'
+                >
+                    ✓ 공격 지정: {{ myAttackTarget }}
+                </div>
+            </div>
+
+            <!-- 적(RED): 공격 대상 상태 -->
+            <div
+                v-else-if='unit.side === "RED"'
                 class='wargame-attack mt-2 pt-2'
             >
                 <div
-                    class='mb-1'
-                    style='font-size: 12px; color: rgba(255,255,255,0.6);'
-                >
-                    {{ atk.attacker.name }} → {{ atk.target.name }}
-                    · {{ (atk.distance / 1000).toFixed(1) }}km
-                </div>
-                <button
-                    v-if='atk.inRange && !atk.designated'
-                    type='button'
-                    class='btn btn-danger btn-sm w-100'
-                    @click='designateAttack'
-                >
-                    공격 지정
-                </button>
-                <div
-                    v-else-if='atk.designated'
+                    v-if='attackerOnMe'
                     class='text-danger fw-bold'
                     style='font-size: 13px;'
                 >
-                    ✓ 공격 지정됨
+                    ✓ {{ attackerOnMe }} 의 공격 대상
+                    <button
+                        type='button'
+                        class='btn btn-outline-light btn-sm w-100 mt-1'
+                        @click='clearMyAttack'
+                    >
+                        지정 해제
+                    </button>
                 </div>
                 <div
-                    v-else
-                    class='text-secondary'
+                    v-else-if='atk'
+                    :class='atk.inRange ? "text-warning" : "text-secondary"'
                     style='font-size: 13px;'
                 >
-                    사거리 밖 (5km 초과)
+                    {{ atk.attacker.name }} → 이 부대 · {{ (atk.distance / 1000).toFixed(1) }}km
+                    {{ atk.inRange ? '(클릭 시 지정)' : '— 사거리 밖 (5km 초과), 더 접근 필요' }}
                 </div>
             </div>
         </div>
@@ -98,17 +130,30 @@
 
 <script setup lang='ts'>
 import { computed } from 'vue';
-import { IconX } from '@tabler/icons-vue';
+import { IconX, IconSword } from '@tabler/icons-vue';
 import { useWargameStore } from '../../stores/wargame.ts';
 
 const store = useWargameStore();
 const unit = computed(() => store.selectedUnit);
 const atk = computed(() => store.attackContext);
 
-function designateAttack(): void {
-    const ctx = store.attackContext;
-    if (!ctx || !ctx.inRange) return;
-    store.addAttack(ctx.attacker.id, ctx.target.id);
+// 이 아군이 지금 공격 모드(대상 선택 대기)인지
+const inAttackMode = computed(() => store.attackModeUnitId === unit.value?.id);
+
+// 이 아군이 지정한 공격 대상 이름 (있으면)
+const myAttackTarget = computed(() => {
+    const a = store.attacks.find((x) => x.attacker_id === unit.value?.id);
+    if (!a) return null;
+    return store.units.find((u) => u.id === a.target_id)?.name ?? a.target_id;
+});
+
+// 선택된 적을 공격 대상으로 지정한 아군 이름 (있으면)
+const attackerOnMe = computed(() => store.attackerOnSelected?.name ?? null);
+
+function clearMyAttack(): void {
+    // 이 적을 대상으로 하는 공격 지정 해제
+    const a = store.attacks.find((x) => x.target_id === unit.value?.id);
+    if (a) store.removeAttack(a.attacker_id);
 }
 
 const sideColor = computed(() => (unit.value?.side === 'RED' ? '#ff8080' : '#80e0ff'));

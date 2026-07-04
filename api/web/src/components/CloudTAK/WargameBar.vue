@@ -95,7 +95,7 @@
             v-model='draft'
             type='text'
             class='form-control form-control-sm wargame-input flex-grow-1'
-            placeholder='명령을 입력하세요 (예: 3대대를 동쪽 계곡으로 기동)'
+            placeholder=''
             @keyup.enter='send'
         >
 

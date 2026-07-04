@@ -127,6 +127,11 @@ export default defineConfig(({ mode }) => {
                     target: 'http://localhost:8000',
                     changeOrigin: true,
                 },
+                // 지형 분석 API (~/backend FastAPI 8000) — 좌표→지형 종류 역판정 등
+                '/terrain': {
+                    target: 'http://localhost:8000',
+                    changeOrigin: true,
+                },
             }
         },
         test: {

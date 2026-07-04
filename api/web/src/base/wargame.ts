@@ -11,7 +11,7 @@
  */
 import type { Map as MapLibreMap, GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
 import OverlayManager from './overlay.ts';
-import { MOVE_RADIUS_M, distanceMeters } from './wargameConfig.ts';
+import { MOVE_RADIUS_M, ATTACK_RANGE_M, distanceMeters } from './wargameConfig.ts';
 import {
     useWargameStore,
     WARGAME_OVERLAY_MODE,
@@ -24,6 +24,10 @@ const SELECTION_LAYER = 'wargame-selection-ring';
 const RANGE_SOURCE = 'wargame-range';
 const RANGE_FILL = 'wargame-range-fill';
 const RANGE_LINE = 'wargame-range-line';
+
+const ATK_SOURCE = 'wargame-attack-range';
+const ATK_FILL = 'wargame-attack-range-fill';
+const ATK_LINE = 'wargame-attack-range-line';
 
 const METERS_PER_DEG_LAT = 111320;
 
@@ -179,19 +183,62 @@ function ensureRangeLayer(map: MapLibreMap): void {
     }
 }
 
-/** 선택된 아군 부대의 anchor 기준 이동 가능 원 갱신 (적군/미선택 시 숨김) */
+/** 선택된 아군의 이동 가능 원(7km) 갱신. 공격 모드에선 숨긴다(공격 사거리 원만 표시). */
 function updateRange(map: MapLibreMap): void {
     const src = map.getSource(RANGE_SOURCE) as GeoJSONSource | undefined;
     if (!src) return;
     const store = useWargameStore();
     const u = store.selectedUnit;
-    if (!u || u.side !== 'BLUE') {
+    if (!u || u.side !== 'BLUE' || store.attackModeUnitId) {
         src.setData({ type: 'FeatureCollection', features: [] });
         return;
     }
     src.setData({
         type: 'FeatureCollection',
         features: [circlePolygon(u.anchorLon, u.anchorLat, MOVE_RADIUS_M)],
+    });
+}
+
+/** 공격 사거리 원(5km) 소스/레이어 보장 (주황색, 부대 심볼 아래) */
+function ensureAttackRangeLayer(map: MapLibreMap): void {
+    if (!map.getSource(ATK_SOURCE)) {
+        map.addSource(ATK_SOURCE, {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+        });
+    }
+    const before = firstUnitsLayerId(map);
+    if (!map.getLayer(ATK_FILL)) {
+        map.addLayer({
+            id: ATK_FILL,
+            type: 'fill',
+            source: ATK_SOURCE,
+            paint: { 'fill-color': '#ff922b', 'fill-opacity': 0.14 },
+        }, before);
+    }
+    if (!map.getLayer(ATK_LINE)) {
+        map.addLayer({
+            id: ATK_LINE,
+            type: 'line',
+            source: ATK_SOURCE,
+            paint: { 'line-color': '#f76707', 'line-width': 2, 'line-opacity': 0.85 },
+        }, before);
+    }
+}
+
+/** 공격 모드 아군의 현재 위치 기준 공격 사거리 원 갱신 (모드 아니면 숨김) */
+function updateAttackRange(map: MapLibreMap): void {
+    const src = map.getSource(ATK_SOURCE) as GeoJSONSource | undefined;
+    if (!src) return;
+    const store = useWargameStore();
+    const u = store.attackModeUnit;
+    if (!u) {
+        src.setData({ type: 'FeatureCollection', features: [] });
+        return;
+    }
+    src.setData({
+        type: 'FeatureCollection',
+        features: [circlePolygon(u.lon, u.lat, ATTACK_RANGE_M)],
     });
 }
 
@@ -211,12 +258,15 @@ export function attachWargameInteractions(map: MapLibreMap): void {
             clearInterval(poll);
             ensureHighlightLayer(map);
             ensureRangeLayer(map);
+            ensureAttackRangeLayer(map);
             updateHighlight(map);
             updateRange(map);
-            // 선택/이동/앵커 등 state 변경 시 하이라이트 + 이동가능 원 갱신
+            updateAttackRange(map);
+            // 선택/이동/앵커/공격모드 등 state 변경 시 하이라이트 + 이동원 + 공격사거리원 갱신
             store.$subscribe(() => {
                 updateHighlight(map);
                 updateRange(map);
+                updateAttackRange(map);
             });
         });
     }, 500);

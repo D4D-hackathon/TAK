@@ -51,6 +51,7 @@ export const useWargameStore = defineStore('wargame', {
         // ---- 게임 규칙 state (프론트 전용) ----
         turnDecision: 'defense' as TurnDecision, // 이번 턴 공격/수비 (기록만)
         attackerId: null as string | null,       // 마지막으로 선택한 아군(공격 주체)
+        attackModeUnitId: null as string | null,  // "공격" 버튼 누른 아군(사거리 원 표시 + 대상 선택 대기)
         attacks: [] as Attack[],                  // 유저가 지정한 공격들
         playerRationale: '' as string,            // 턴 종료 후 유저 서술
         awaitingRationale: false,                 // 턴 종료 → 서술 대기 중
@@ -75,17 +76,32 @@ export const useWargameStore = defineStore('wargame', {
             return state.units.find((u) => u.id === state.attackerId) ?? null;
         },
 
-        /** 선택된 부대가 적(RED)이고, 현재 공격자(BLUE)가 있으면 사거리 판정 맥락 반환 */
+        /** "공격" 버튼을 눌러 대상 선택 대기 중인 아군 (사거리 원의 중심) */
+        attackModeUnit(state): WargameUnit | null {
+            if (!state.attackModeUnitId) return null;
+            return state.units.find((u) => u.id === state.attackModeUnitId) ?? null;
+        },
+
+        /** 공격 모드 중 선택된 적(RED)에 대한 사거리 판정 맥락 */
         attackContext(): AttackContext | null {
             const target = this.selectedUnit;
             if (!target || target.side !== 'RED') return null;
-            const attacker = this.attackerUnit;
+            const attacker = this.attackModeUnit;
             if (!attacker || attacker.side !== 'BLUE') return null;
             const d = distanceMeters(attacker.lon, attacker.lat, target.lon, target.lat);
             const designated = this.attacks.some(
                 (a) => a.attacker_id === attacker.id && a.target_id === target.id,
             );
             return { attacker, target, distance: d, inRange: d <= ATTACK_RANGE_M, designated };
+        },
+
+        /** 선택된 적(RED)을 공격 대상으로 지정한 아군 (지정 완료 표시용) */
+        attackerOnSelected(state): WargameUnit | null {
+            const sel = state.selectedUnitId;
+            if (!sel) return null;
+            const atk = state.attacks.find((a) => a.target_id === sel);
+            if (!atk) return null;
+            return state.units.find((u) => u.id === atk.attacker_id) ?? null;
         },
     },
 
@@ -122,8 +138,6 @@ export const useWargameStore = defineStore('wargame', {
 
         selectUnit(id: string): void {
             this.selectedUnitId = id;
-            // 아군 선택 시 그 부대가 공격 주체가 된다. 적 선택은 공격자를 바꾸지 않는다
-            // (아군 선택 → 사거리 내 적 클릭 → 공격 지정 흐름을 위해).
             const u = this.units.find((unit) => unit.id === id);
             if (u && u.side === 'BLUE') this.attackerId = id;
         },
@@ -131,6 +145,44 @@ export const useWargameStore = defineStore('wargame', {
         clearSelection(): void {
             this.selectedUnitId = null;
             this.attackerId = null;
+            this.attackModeUnitId = null;
+        },
+
+        /** 지도에서 부대 클릭 시 호출 (공격 모드면 적 대상 지정, 아니면 일반 선택). */
+        onUnitClicked(id: string): void {
+            const u = this.units.find((unit) => unit.id === id);
+            // 공격 모드 + 적(RED) 클릭 → 사거리 판정 후 지정
+            if (this.attackModeUnitId && u && u.side === 'RED') {
+                this.selectedUnitId = id;
+                const atk = this.units.find((x) => x.id === this.attackModeUnitId);
+                if (atk) {
+                    const d = distanceMeters(atk.lon, atk.lat, u.lon, u.lat);
+                    if (d <= ATTACK_RANGE_M) {
+                        this.addAttack(this.attackModeUnitId, id);
+                        this.attackModeUnitId = null; // 지정 완료 → 공격 모드 종료
+                    }
+                    // 사거리 밖이면 모드 유지(패널에 "사거리 밖" 표시, 다른 적 재선택 가능)
+                }
+                return;
+            }
+            // 그 외(아군/다른 부대 클릭) → 공격 모드 해제 + 일반 선택
+            this.attackModeUnitId = null;
+            this.selectUnit(id);
+        },
+
+        /** 빈 곳 클릭 → 선택/공격 모드 해제 */
+        onEmptyClicked(): void {
+            this.clearSelection();
+        },
+
+        /** "공격" 버튼 → 대상 선택 대기(사거리 원 표시). */
+        enterAttackMode(id: string): void {
+            this.attackModeUnitId = id;
+            this.selectedUnitId = id;
+        },
+
+        exitAttackMode(): void {
+            this.attackModeUnitId = null;
         },
 
         // ---- 게임 규칙 액션 ----

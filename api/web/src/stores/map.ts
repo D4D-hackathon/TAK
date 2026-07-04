@@ -1116,11 +1116,11 @@ export const useMapStore = defineStore('cloudtak', {
                 const wargameHit = map.queryRenderedFeatures(e.point)
                     .filter((f) => f.properties && f.properties.wargame_unit);
                 if (wargameHit.length) {
-                    useWargameStore().selectUnit(String(wargameHit[0].properties.id));
+                    useWargameStore().onUnitClicked(String(wargameHit[0].properties.id));
                     return;
                 }
-                // 부대가 아닌 곳 클릭 → 선택 해제 후 기존 흐름 계속
-                useWargameStore().clearSelection();
+                // 부대가 아닌 곳 클릭 → 선택/공격 모드 해제 후 기존 흐름 계속
+                useWargameStore().onEmptyClicked();
 
                 if (this.select.feats) this.select.feats = [];
 
