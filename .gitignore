@@ -1,4 +1,10 @@
 # Custom
+takserver-official/**/.gradle/
+takserver-official/**/build/
+takserver-official/**/node_modules/
+takserver-official/**/.DS_Store
+takserver-official/**/.env
+
 *.p12
 *.cert
 *.key

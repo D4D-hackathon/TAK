@@ -1,0 +1,488 @@
+package tak.server.federation.hub.broker;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.lang3.RandomStringUtils;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class FederationHubServerConfig {
+
+    public FederationHubServerConfig() {
+        this.tlsVersions = new ArrayList<String>();
+        this.tlsVersions.add("TLSv1.2");
+        this.tlsVersions.add("TLSv1.3");
+        this.nonce = RandomStringUtils.random(8, true, true);
+        this.fullId = this.id + "-" + this.nonce;
+    }
+
+    /* Shared parameters. */
+    private String keystoreType = "JKS";
+    private String keystoreFile = "";
+    private String keystorePassword;
+
+    private String truststoreType = "JKS";
+    private String truststoreFile = "";
+    private String truststorePassword;
+
+    private String keyManagerType = "SunX509";
+    private String caFile = "";
+
+
+    /* For v1 federation only. */
+    private boolean v1Enabled;
+    private Integer v1Port;
+    private String context = "TLSv1.2";
+    private boolean useEpoll = true;
+    private boolean allow128cipher = true;
+    private boolean allowNonSuiteB = true;
+    private boolean enableOCSP = false;
+    private List<String> tlsVersions;
+
+    /* For v2 federation only. */
+    private boolean v2Enabled;
+    private Integer v2Port;
+    private int maxMessageSizeBytes = 268435456;
+    private int metricsLogIntervalSeconds = 5;
+    private int clientTimeoutTime = 15;
+    private int clientRefreshTime = 5;
+    /* Netty default is unlimited. */
+    private Integer maxConcurrentCallsPerConnection;
+    private boolean enableHealthCheck = true;
+    private boolean useCaGroups = true;
+    
+    private String serverName = "";
+    private int outgoingReconnectSeconds = 5;
+    private String id;
+    @JsonIgnore
+    private String nonce;
+    @JsonIgnore
+    private String fullId;
+    
+    private String dbUsername = "martiuser";
+    private String dbPassword = "";
+    private int dbPort = 27017;
+    private String dbHost = "localhost";
+    private long dbConnectionTimeoutMS = 5000;
+    
+    private long missionFederationDBRetentionDays = 7;
+    
+    private long missionFederationRecencySeconds = 43200;
+    private long missionFederationDisruptionMaxFileSizeBytes = 268435456;
+    private boolean missionFederationDisruptionEnabled = false;
+
+    private double missionFederationDisruptionDynamicDelayMultiplier = 2.0;
+    
+    private List<TokenAuthServer> federationTokenAuthServers = new ArrayList<>();
+    
+    private final int maxExpectedConnectedFederates = 100;
+    
+    private String cloudwatchNamespace = "fedhub";
+    private String cloudwatchName = "";
+    private int cloudwatchMetricsBatchSize = 20;
+    private int cloudwatchStepSeconds = 60;
+    private boolean cloudwatchEnable = false;
+    
+    public int getOutgoingReconnectSeconds() {
+		return outgoingReconnectSeconds;
+	}
+
+	public void setOutgoingReconnectSeconds(int outgoingReconnectSeconds) {
+		this.outgoingReconnectSeconds = outgoingReconnectSeconds;
+	}
+
+	public String getServerName() {
+		return serverName;
+	}
+    
+	public void setServerName(String serverName) {
+		this.serverName = serverName;
+	}
+	
+	public String getId() {
+		return id;
+	}
+	
+	public void setId(String id) {
+		this.id = id;
+		this.fullId = this.id + "-" + this.nonce;
+	}
+
+	public String getFullId() {
+		return this.fullId;
+ 	}
+	
+    /*
+     * Shared parameters.
+     */
+
+    public String getKeystoreType() {
+        return keystoreType;
+    }
+    public void setKeystoreType(String keystoreType) {
+        this.keystoreType = keystoreType;
+    }
+
+    public String getKeystoreFile() {
+        return keystoreFile;
+    }
+    public void setKeystoreFile(String keystoreFile) {
+        this.keystoreFile = keystoreFile;
+    }
+
+    public String getKeystorePassword() {
+        return keystorePassword;
+    }
+    public void setKeystorePassword(String keystorePassword) {
+        this.keystorePassword = keystorePassword;
+    }
+
+    public String getTruststoreType() {
+        return truststoreType;
+    }
+    public void setTruststoreType(String truststoreType) {
+        this.truststoreType = truststoreType;
+    }
+    public String getTruststoreFile() {
+        return truststoreFile;
+    }
+    public void setTruststoreFile(String truststoreFile) {
+        this.truststoreFile = truststoreFile;
+    }
+    public String getTruststorePassword() {
+        return truststorePassword;
+    }
+    public void setTruststorePass(String truststorePassword) {
+        this.truststorePassword = truststorePassword;
+    }
+
+    public String getKeyManagerType() {
+        return keyManagerType;
+    }
+    public void setKeyManagerType(String keyManagerType) {
+        this.keyManagerType = keyManagerType;
+    }
+    
+    public String getCaFile() {
+		return caFile;
+	}
+
+	public void setCaFile(String caFile) {
+		this.caFile = caFile;
+	}
+
+    /*
+     * v1 federation only.
+     */
+
+	public boolean isV1Enabled() {
+        return v1Enabled;
+    }
+    public void setV1Enabled(boolean v1Enabled) {
+        this.v1Enabled = v1Enabled;
+    }
+
+    public Integer getV1Port() {
+        return v1Port;
+    }
+    public void setV1Port(Integer v1Port) {
+        this.v1Port = v1Port;
+    }
+
+    public String getContext() {
+        return context;
+    }
+    public void setContext(String context) {
+        this.context = context;
+    }
+
+    public boolean isUseEpoll() {
+        return useEpoll;
+    }
+    public void setUseEpoll(boolean useEpoll) {
+        this.useEpoll = useEpoll;
+    }
+
+    public boolean isAllow128cipher() {
+        return allow128cipher;
+    }
+    public void setAllow128cipher(boolean allow128cipher) {
+        this.allow128cipher = allow128cipher;
+    }
+
+    public boolean isAllowNonSuiteB() {
+        return allowNonSuiteB;
+    }
+    public void setAllowNonSuiteB(boolean allowNonSuiteB) {
+        this.allowNonSuiteB = allowNonSuiteB;
+    }
+
+    public boolean isEnableOCSP() {
+        return enableOCSP;
+    }
+    public void setEnableOCSP(boolean enableOCSP) {
+        this.enableOCSP = enableOCSP;
+    }
+
+    public List<String> getTlsVersions() {
+        return tlsVersions;
+    }
+    public void setTlsVersions(List<String> tlsVersions) {
+        this.tlsVersions = tlsVersions;
+    }
+
+    /*
+     * v2 federation only.
+     */
+
+    public boolean isV2Enabled() {
+        return v2Enabled;
+    }
+    public void setV2Enabled(boolean v2Enabled) {
+        this.v2Enabled = v2Enabled;
+    }
+
+    public Integer getV2Port() {
+        return v2Port;
+    }
+    public void setV2Port(Integer v2Port) {
+        this.v2Port = v2Port;
+    }
+
+    public int getMaxMessageSizeBytes() {
+        return maxMessageSizeBytes;
+    }
+    public void setMaxMessageSizeBytes(int maxMessageSizeBytes) {
+        this.maxMessageSizeBytes = maxMessageSizeBytes;
+    }
+
+    public int getMetricsLogIntervalSeconds() {
+        return metricsLogIntervalSeconds;
+    }
+    public void setMetricsLogIntervalSeconds(int metricsLogIntervalSeconds) {
+        this.metricsLogIntervalSeconds = metricsLogIntervalSeconds;
+    }
+
+    public int getClientTimeoutTime() {
+        return clientTimeoutTime;
+    }
+    public void setClientTimeoutTime(int clientTimeoutTime) {
+        this.clientTimeoutTime = clientTimeoutTime;
+    }
+
+    public int getClientRefreshTime() {
+        return clientRefreshTime;
+    }
+    public void setClientRefreshTime(int clientRefreshTime) {
+        this.clientRefreshTime = clientRefreshTime;
+    }
+
+    public Integer getMaxConcurrentCallsPerConnection() {
+        return maxConcurrentCallsPerConnection;
+    }
+    public void setMaxConcurrentCallsPerConnection(Integer maxConcurrentCallsPerConnection) {
+        this.maxConcurrentCallsPerConnection = maxConcurrentCallsPerConnection;
+    }
+
+    public boolean isEnableHealthCheck() {
+        return enableHealthCheck;
+    }
+    public void setEnableHealthCheck(boolean enableHealthCheck) {
+        this.enableHealthCheck = enableHealthCheck;
+    }
+
+    public boolean isUseCaGroups() {
+        return useCaGroups;
+    }
+    public void setUseCaGroups(boolean useCaGroups) {
+        this.useCaGroups = useCaGroups;
+    }
+	
+	public String getDbUsername() {
+		return dbUsername;
+	}
+
+	public void setDbUsername(String dbUsername) {
+		this.dbUsername = dbUsername;
+	}
+
+	public String getDbPassword() {
+		return dbPassword;
+	}
+
+	public void setDbPassword(String dbPassword) {
+		this.dbPassword = dbPassword;
+	}
+
+	public int getDbPort() {
+		return dbPort;
+	}
+
+	public void setDbPort(int dbPort) {
+		this.dbPort = dbPort;
+	}
+
+	public String getDbHost() {
+		return dbHost;
+	}
+
+	public void setDbHost(String dbHost) {
+		this.dbHost = dbHost;
+	}
+
+	public long getDbConnectionTimeoutMS() {
+		return dbConnectionTimeoutMS;
+	}
+
+	public void setDbConnectionTimeoutMS(long dbConnectionTimeoutMS) {
+		this.dbConnectionTimeoutMS = dbConnectionTimeoutMS;
+	}
+
+	public long getMissionFederationRecencySeconds() {
+		return missionFederationRecencySeconds;
+	}
+
+	public void setMissionFederationRecencySeconds(long missionFederationRecencySeconds) {
+		this.missionFederationRecencySeconds = missionFederationRecencySeconds;
+	}
+
+	public boolean isMissionFederationDisruptionEnabled() {
+		return missionFederationDisruptionEnabled;
+	}
+
+	public void setMissionFederationDisruptionEnabled(boolean missionFederationDisruptionEnabled) {
+		this.missionFederationDisruptionEnabled = missionFederationDisruptionEnabled;
+	}
+
+	public long getMissionFederationDBRetentionDays() {
+		return missionFederationDBRetentionDays;
+	}
+
+	public void setMissionFederationDBRetentionDays(long missionFederationDBRetentionDays) {
+		this.missionFederationDBRetentionDays = missionFederationDBRetentionDays;
+	}
+
+	public long getMissionFederationDisruptionMaxFileSizeBytes() {
+		return missionFederationDisruptionMaxFileSizeBytes;
+	}
+
+	public void setMissionFederationDisruptionMaxFileSizeBytes(long missionFederationDisruptionMaxFileSizeBytes) {
+		this.missionFederationDisruptionMaxFileSizeBytes = missionFederationDisruptionMaxFileSizeBytes;
+	}
+
+	public List<TokenAuthServer> getFederationTokenAuthServers() {
+		return federationTokenAuthServers;
+	}
+
+	public void setFederationTokenAuthServers(List<TokenAuthServer> federationTokenAuthServers) {
+		this.federationTokenAuthServers = federationTokenAuthServers;
+	}
+	
+	public int getMaxExpectedConnectedFederates() {
+		return maxExpectedConnectedFederates;
+	}
+	
+	public String getCloudwatchNamespace() {
+		return cloudwatchNamespace;
+	}
+
+	public void setCloudwatchNamespace(String cloudwatchNamespace) {
+		this.cloudwatchNamespace = cloudwatchNamespace;
+	}
+
+	public String getCloudwatchName() {
+		return cloudwatchName;
+	}
+
+	public void setCloudwatchName(String cloudwatchName) {
+		this.cloudwatchName = cloudwatchName;
+	}
+
+	public int getCloudwatchMetricsBatchSize() {
+		return cloudwatchMetricsBatchSize;
+	}
+
+	public void setCloudwatchMetricsBatchSize(int cloudwatchMetricsBatchSize) {
+		this.cloudwatchMetricsBatchSize = cloudwatchMetricsBatchSize;
+	}
+
+	public boolean isCloudwatchEnable() {
+		return cloudwatchEnable;
+	}
+
+	public void setCloudwatchEnable(boolean cloudwatchEnable) {
+		this.cloudwatchEnable = cloudwatchEnable;
+	}
+
+	public int getCloudwatchStepSeconds() {
+		return cloudwatchStepSeconds;
+	}
+
+	public void setCloudwatchStepSeconds(int cloudwatchStepSeconds) {
+		this.cloudwatchStepSeconds = cloudwatchStepSeconds;
+	}
+
+    public double getMissionFederationDisruptionDynamicDelayMultiplier() {
+        return missionFederationDisruptionDynamicDelayMultiplier;
+    }
+
+    public void setMissionFederationDisruptionDynamicDelayMultiplier(double missionFederationDisruptionDynamicDelayMultiplier) {
+        this.missionFederationDisruptionDynamicDelayMultiplier = missionFederationDisruptionDynamicDelayMultiplier;
+    }
+
+	@Override
+	public String toString() {
+		return "FederationHubServerConfig [keystoreType=" + keystoreType + ", keystoreFile=" + keystoreFile
+				+ ", truststoreType=" + truststoreType + ", truststoreFile=" + truststoreFile + ", keyManagerType="
+				+ keyManagerType + ", caFile=" + caFile + ", v1Enabled=" + v1Enabled + ", v1Port=" + v1Port
+				+ ", context=" + context + ", useEpoll=" + useEpoll + ", allow128cipher=" + allow128cipher
+				+ ", allowNonSuiteB=" + allowNonSuiteB + ", enableOCSP=" + enableOCSP + ", tlsVersions=" + tlsVersions
+				+ ", v2Enabled=" + v2Enabled + ", v2Port=" + v2Port + ", maxMessageSizeBytes=" + maxMessageSizeBytes
+				+ ", metricsLogIntervalSeconds=" + metricsLogIntervalSeconds + ", clientTimeoutTime="
+				+ clientTimeoutTime + ", clientRefreshTime=" + clientRefreshTime + ", maxConcurrentCallsPerConnection="
+				+ maxConcurrentCallsPerConnection + ", enableHealthCheck=" + enableHealthCheck + ", useCaGroups="
+				+ useCaGroups + ", serverName=" + serverName + ", outgoingReconnectSeconds=" + outgoingReconnectSeconds
+				+ ", id=" + id + ", fullId=" + fullId + ", dbUsername=" + dbUsername + ", dbPort=" + dbPort
+				+ ", dbHost=" + dbHost + ", dbConnectionTimeoutMS=" + dbConnectionTimeoutMS
+				+ ", missionFederationDBRetentionDays=" + missionFederationDBRetentionDays
+				+ ", missionFederationRecencySeconds=" + missionFederationRecencySeconds
+				+ ", missionFederationDisruptionMaxFileSizeBytes=" + missionFederationDisruptionMaxFileSizeBytes
+				+ ", missionFederationDisruptionEnabled=" + missionFederationDisruptionEnabled
+				+ ", federationTokenAuthServers=" + federationTokenAuthServers + ", maxExpectedConnectedFederates="
+				+ maxExpectedConnectedFederates + ", cloudwatchNamespace=" + cloudwatchNamespace + ", cloudwatchName="
+				+ cloudwatchName + ", cloudwatchMetricsBatchSize=" + cloudwatchMetricsBatchSize + ", cloudwatchEnable="
+				+ cloudwatchEnable + "]";
+	}
+	
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class TokenAuthServer {
+		private int port = 9103;
+		private boolean tls = true;
+		private String type = "jwt";
+		public int getPort() {
+			return port;
+		}
+		public void setPort(int port) {
+			this.port = port;
+		}
+		public String getType() {
+			return type;
+		}
+		public void setType(String type) {
+			this.type = type;
+		}
+		public boolean isTls() {
+			return tls;
+		}
+		public void setTls(boolean tls) {
+			this.tls = tls;
+		}
+		@Override
+		public String toString() {
+			return "TokenAuthServer [port=" + port + ", tls=" + tls + ", type=" + type + "]";
+		}
+	}
+}

@@ -1,0 +1,61 @@
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+mainClassName = 'netty.NettyRunnerExample'
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+
+buildscript {
+  repositories {
+    mavenCentral()
+    maven {
+      url 'https://plugins.gradle.org/m2'
+    }
+  }
+  dependencies {
+    classpath 'com.google.protobuf:protobuf-gradle-plugin:' + gradle_protobuf_version
+    classpath 'gradle.plugin.com.github.johnrengelman:shadow:' + gradle_shadow_version
+  }
+}
+
+//apply plugin: 'com.github.johnrengelman.shadow'
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+}
+dependencies {
+
+  implementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.4.10.RC0'
+
+
+  implementation 'io.netty:netty-tcnative-boringssl-static:' + boringssl_static_version
+
+  implementation group: 'io.netty', name: 'netty-all', version: netty_epoll_version
+
+  implementation group: 'io.netty', name: 'netty-transport-native-epoll', version: netty_epoll_version, classifier: 'linux-x86_64'
+
+  implementation group: 'com.google.guava', name: 'guava', version: guava_version
+
+
+  implementation 'javax.annotation:javax.annotation-api:' + javax_annotation_api_version
+
+  // for netty performance, put javassist on the classpath
+  implementation group: 'org.javassist', name: 'javassist', version: javassist_version
+}
+
+
+shadowJar {
+    baseName = 'nettytestclient'
+    classifier = 'uber'
+    version = '1.0'
+}
+
+clean {
+  delete 'bin'
+}
+

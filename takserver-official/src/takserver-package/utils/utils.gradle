@@ -1,0 +1,363 @@
+def hardened_rpm_download_directory = "$buildDir/docker/hardened-shared/takArtifacts/security"
+
+apply from: "$rootDir/takserver-package/utils/copyspecs-composite.gradle"
+
+task createCIVersionArtifacts() {
+    // The docker tags, starting with the unique primary docker tag
+    def primaryDockerTag = (takversion + '-' + takreleaserpm).toLowerCase()
+    def dockerTags = [primaryDockerTag]
+    def takVersion = version
+
+    doLast {
+        // For properly tagged types, set the appropriate publishPath
+        if (takrelease.contains('RELEASE')) {
+            // If it is a release, also set the x.y version tag
+            dockerTags.add(takversion)
+
+            // If the env var indicates it should be tagged as the latest, tag it as the latest
+            if ("$System.env.TAG_AS_LATEST".toLowerCase() == "true") {
+                dockerTags.add('latest')
+            }
+
+        } else if (!(takrelease.contains('BETA') || takrelease.contains('DEV'))) {
+            // If it is an unknown type, clear the docker tags and set the publish path to dev with branch and hash information
+            primaryDockerTag = ''
+            dockerTags = []
+            takVersion = takversion + '-' + gitbranch.replace('/', '_') + "-" + gitrev.substring(0, 8)
+        }
+
+        // Write as env vars to file that can be easily sourced by CI scripts
+        def tagsStr = dockerTags.join(' ')
+        new File("$projectDir/CI_ENV_VARS").text =
+                "TAK_DOCKER_TAGS=\"$tagsStr\"\n" +
+                        "TAK_VERSION=\"$takVersion\"\n" +
+                        "TAK_RPM_VERSION=\"$takversion-$takreleaserpm\"\n" +
+                        "TAK_DOCKER_PRIMARY_TAG=\"$primaryDockerTag\"\n"
+    }
+}
+
+task constructDockerZip(type: Zip) { Task task ->
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    
+    archiveFileName.set("takserver-docker-${project.version}.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    
+    into('takserver-docker-' + project.version)
+
+    with takserverDockerCommonSpec(task).into('tak')
+    with copyDockerCoreConfigExampleSpec().into('tak')
+    with copyDockerScriptsSpec().into('tak')
+    with copyDockerDbScriptsSpec().into('tak')
+
+    from(project(':takserver-core').file('docker')) {
+        include('configureInDocker.sh')
+        include('Dockerfile.takserver')
+        rename('(configureInDocker.sh)', 'tak/$1')
+        rename('(Dockerfile.takserver)', 'docker/$1')
+    }
+
+    from(project(':takserver-schemamanager').file('docker')) {
+        include('Dockerfile.takserver-db')
+        rename('(Dockerfile.takserver-db)', 'docker/$1')
+    }
+
+    // TODO: Fix this gradle-detected dependency that probably shouldn't be
+    dependsOn(':takserver-cluster:copyClusterConfig',
+            ':takserver-cluster:copyClusterProperties',
+            ':takserver-cluster:moveCoreConfig')
+}
+
+task constructIntegrationTesterDir(type: Copy) { task ->
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    destinationDir(file("$buildDir/integrationTesterDir"))
+
+    with takserverDockerCommonSpec(task)
+    with copyDockerCoreConfigExampleSpec()
+    with copyDockerScriptsSpec()
+    with copyDockerDbScriptsSpec()
+
+    with copyFullFedhubSpec(task, true)
+    with copyIntegrationTestAdditionsSpec(task)
+}
+
+task updateIntegrationTesterCore(type: Copy) { task ->
+    with copyBaseTakJarsAndWarsSpec(task).into('tak')
+    with copyIntegrationTestAdditionsSpec(task).into('tak')
+    destinationDir(file("$buildDir/integrationTesterDir"))
+}
+
+task constructIntegrationTesterZip(type: Zip) { task ->
+    dependsOn(constructIntegrationTesterDir)
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    
+    archiveFileName.set("takserver-integration-tester-${project.version}.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    
+    from("$buildDir/integrationTesterDir")
+    into("takserver-integration-tester-${project.version}/tak")
+}
+
+task fetchRpmsForHardenedDocker(type: Exec) {
+    dependsOn(':takserver-package:prePackage')
+    def epelFilename = "epel-release-latest-9.noarch.rpm"
+    def outputfilepath = "${hardened_rpm_download_directory}/${epelFilename}"
+    outputs.file(outputfilepath)
+    commandLine "curl", "--create-dirs", "https://dl.fedoraproject.org/pub/epel/${epelFilename}", "--output", outputfilepath
+}
+
+task constructIronbankDBZip(type: Zip) { task ->
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    
+    archiveFileName.set("takserver-ironbank-db-${project.version}.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    
+    into('takserver-ironbank-db-' + project.version)
+
+    with copySchemaManagerJarSpec(task)
+    with copyHardenedDockerDbScriptsSpec()
+    with copyHardenedDockerCoreConfigExampleSpec().exclude('logging-restrictsize.xml')
+
+    from(project(':takserver-schemamanager').file('docker/hardened')) {
+        include('Dockerfile.hardened-takserver-db')
+    }
+}
+
+task constructHardenedDockerZip(type: Zip) { Task task ->
+    dependsOn fetchRpmsForHardenedDocker
+
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    
+    archiveFileName.set("takserver-docker-hardened-${project.version}.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    
+    into('takserver-docker-hardened-' + project.version)
+
+    with takserverDockerCommonSpec(task).into('tak')
+    with copyDockerScriptsSpec().into('tak')
+    with copyHardenedDockerDbScriptsSpec().into('tak')
+    with copyHardenedDockerCoreConfigExampleSpec().into('tak')
+
+    from(project(':takserver-core').file('docker')) {
+        include('configureInDocker.sh')
+        rename('(configureInDocker.sh)', 'tak/$1')
+    }
+
+    // Include the hardened docker-specific files
+    from(project(':takserver-core').file('docker/hardened')) {
+        exclude('full')
+        rename('(Dockerfile.ca)', 'docker/$1')
+        rename('(Dockerfile.hardened-takserver)', 'docker/$1')
+        rename('(README_hardened_docker.md)', 'docker/$1')
+    }
+
+    from(hardened_rpm_download_directory) {
+        into('tak/security')
+    }
+
+    // Include the hardened schemamanager-specific dockerfile
+    from(project(':takserver-schemamanager').file('docker/hardened')) {
+        include('Dockerfile.hardened-takserver-db')
+        rename('(Dockerfile.hardened-takserver-db)', 'docker/$1')
+    }
+
+    // TODO: Fix this gradle-detected dependency that probably shouldn't be
+    dependsOn(':takserver-cluster:copyClusterConfig',
+            ':takserver-cluster:copyClusterProperties',
+            ':takserver-cluster:moveCoreConfig')
+}
+
+task constructFullDockerZip(type: Zip) { Task task ->
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    
+    archiveFileName.set("takserver-docker-full-${project.version}.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    
+    into('takserver-docker-full-' + project.version)
+
+    with takserverDockerCommonSpec(task).into('tak')
+    with copyFullDockerScriptsSpec().into('tak')
+    with copyDockerDbScriptsSpec().into('tak')
+    with copyDockerCoreConfigExampleSpec().into('tak')
+
+    from(project(':takserver-core').file('docker')) {
+        include('configureInDocker.sh')
+        rename('(configureInDocker.sh)', 'tak/$1')
+    }
+
+    from(project(':takserver-core').file('docker/full')) {
+        include('coreConfigEnvHelper.py')
+        include('docker-compose.yml')
+        include('docker_entrypoint.sh')
+        include('Dockerfile.takserver')
+        include('EDIT_ME.env')
+        include('full-README.md')
+        rename('(coreConfigEnvHelper.py)', 'tak/$1')
+        rename('(docker-compose.yml)', 'docker/$1')
+        rename('(docker_entrypoint.sh)', 'tak/$1')
+        rename('(Dockerfile.takserver)', 'docker/$1')
+        rename('(EDIT_ME.env)', 'docker/$1')
+        rename('(full-README.md)', 'docker/$1')
+    }
+
+    // TODO: Fix this gradle-detected dependency that probably shouldn't be
+    dependsOn(':takserver-cluster:copyClusterConfig',
+            ':takserver-cluster:copyClusterProperties',
+            ':takserver-cluster:moveCoreConfig')
+}
+
+
+task constructHardenedFullDockerZip(type: Zip) { Task task ->
+    duplicatesStrategy DuplicatesStrategy.FAIL
+    
+    archiveFileName.set("takserver-docker-hardened-full-${project.version}.zip")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+
+    
+    into('takserver-docker-hardened-full-' + project.version)
+
+    dependsOn fetchRpmsForHardenedDocker
+
+    with takserverDockerCommonSpec(task).into('tak')
+    with copyHardenedFullDockerDbScriptsSpec().into('tak')
+    with copyDockerScriptsSpec().into('tak')
+    with copyHardenedFullDockerCoreConfigExampleSpec().exclude('TAKIgniteConfig.example.xml').into('tak')
+
+    from(project(':takserver-core').file('docker')) {
+        include('configureInDocker.sh')
+        rename('(configureInDocker.sh)', 'tak/$1')
+    }
+
+    from(project(':takserver-core').file('docker/hardened/full')) {
+        include('docker-compose.yml')
+        include('docker_entrypoint.sh')
+        include('EDIT_ME.env')
+        include('full-README.md')
+
+        rename('(docker-compose.yml)', 'docker/$1')
+        rename('(docker_entrypoint.sh)', 'tak/$1')
+        rename('(EDIT_ME.env)', 'docker/$1')
+        rename('(full-README.md)', 'docker/$1')
+    }
+
+    from(project(':takserver-core').file('docker/hardened/full')) {
+        include('Dockerfile.hardened-full-takserver')
+        into('docker')
+    }
+
+    from(project(':takserver-core').file('docker/hardened/tak')) {
+        include('security/**')
+        include('health/**')
+        into('tak')
+    }
+
+    from(hardened_rpm_download_directory) {
+        into('tak/security')
+    }
+
+    from(project(':takserver-schemamanager').file('docker/hardened/full')) {
+        exclude('Dockerfile.hardened-full-takserver-db')
+        into("tak/db-utils/full")
+    }
+
+    from(project(':takserver-schemamanager').file('docker/hardened/full')) {
+        include('Dockerfile.hardened-full-takserver-db')
+        into("docker")
+    }
+
+    // TODO: Fix this gradle-detected dependency that probably shouldn't be
+    dependsOn(':takserver-cluster:copyClusterConfig',
+            ':takserver-cluster:copyClusterProperties',
+            ':takserver-cluster:moveCoreConfig')
+}
+
+//// I'm not sure these two should even be in the takserver RPM. But I don't want to risk breaking it
+task copyDockerSecurityFiles(type: Copy) {
+    from project(':takserver-core').file('docker/hardened/tak/security')
+    include "rpms/repos/*"
+    include "rpms/signatures/*"
+    include "epel-release*"
+    into "$buildDir/docker/hardened/takArtifacts/security"
+}
+
+task copyHealthCheckScripts(type: Copy) {
+    from project(':takserver-core').file('docker/hardened/tak/health')
+    into "$buildDir/docker/hardened/takArtifacts/health"
+}
+
+ext.takserver_systemd_setup_script = '''\
+# install takserver service if we are on a RHEL or rocky distribution
+if [ -f /etc/redhat-release ] || [ -f /etc/rocky-release ]; then
+    echo "Putting tak server service into systemd"
+    sudo bash -c 'cat > /etc/systemd/system/takserver.service <<EOF
+[Unit]
+Description=TAK Server Service
+After=network.target
+Conflicts=takserver-noplugins.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tak
+ExecStart=/bin/bash -c "./takserver-config.sh & ./takserver-messaging.sh & ./takserver-api.sh & ./takserver-plugins.sh & ./takserver-retention.sh"
+RemainAfterExit=yes
+User=tak
+Group=tak
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+    echo "Creating takserver no plugins service in systemd"
+    sudo bash -c 'cat > /etc/systemd/system/takserver-noplugins.service <<EOF
+[Unit]
+Description=TAK Server Service (No Plugins)
+After=network.target
+Conflicts=takserver.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tak
+ExecStart=/bin/bash -c "./takserver-config.sh & ./takserver-messaging.sh & ./takserver-api.sh"
+RemainAfterExit=yes
+User=tak
+Group=tak
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+    sudo systemctl daemon-reload
+fi
+'''
+
+ext.federation_hub_systemd_setup_script = '''\
+# install federation hub service if we are on a RHEL or rocky distribution
+if [ -f /etc/redhat-release ] || [ -f /etc/rocky-release ]; then
+    echo "Putting federation-hub service into systemd"
+    sudo bash -c 'cat > /etc/systemd/system/federation-hub.service <<EOF
+[Unit]
+Description=Federation Hub Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/tak/federation-hub/scripts
+
+ExecStart=/bin/bash -c "./federation-hub-policy.sh & ./federation-hub-plugin-manager.sh & ./federation-hub-ui.sh & ./federation-hub-broker.sh"
+RemainAfterExit=yes
+User=tak
+Group=tak
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+    sudo systemctl daemon-reload
+fi
+'''
+

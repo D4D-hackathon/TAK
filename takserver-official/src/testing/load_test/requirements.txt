@@ -1,0 +1,7 @@
+pyyaml>=6.0,<7.0
+requests>=2.25.0,<3.0.0
+pyzmq
+pyOpenSSL>=23.1.1
+websockets>=16.0
+protobuf>=3.20,<4.0
+boto3>=1.34,<2.0

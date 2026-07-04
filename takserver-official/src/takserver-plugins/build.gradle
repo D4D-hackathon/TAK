@@ -1,0 +1,88 @@
+
+apply plugin: 'maven-publish'
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+publishing {
+    publications {
+        shadowjar(MavenPublication) {
+            groupId = 'gov.tak'
+            artifactId = 'takserver-plugins'
+            version = version.toLowerCase()
+			artifact tasks.shadowJar
+        }
+    }
+    repositories {
+      maven {
+          url = "${buildDir}/maven"
+      }
+    }
+}
+dependencies {
+
+  api ("com.google.protobuf:protobuf-java:$protobuf_java_version") {
+    exclude group: 'javax.annotation'
+    exclude group: 'javax.activation'
+    exclude group: 'com.google.guava'
+  }
+
+  implementation group: 'org.yaml', name: 'snakeyaml', version: snake_yaml_version
+  implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4j_version
+  implementation group: 'org.slf4j', name: 'log4j-over-slf4j', version: slf4j_version
+
+  api(project(':takserver-protobuf')) {
+    exclude group: 'io.grpc'
+    exclude group: 'io.netty'
+  }
+
+  implementation group: 'org.hibernate.orm', name: 'hibernate-core', version: hibernate_version
+  implementation group: 'com.googlecode.json-simple', name: 'json-simple', version: json_simple_version
+  //implementation group: 'javax.xml.bind', name: 'jaxb-api', version: jaxb_api_version
+  implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: jakarta_xml_bind_api_version
+  //implementation group: 'javax.persistence', name: 'javax.persistence-api', version: javax_persistence_api_version
+  implementation group: 'jakarta.persistence', name: 'jakarta.persistence-api', version: jakarta_persistence_api_version
+  implementation group: 'com.intellij', name: 'annotations', version: intellij_annotations_version // IntelliJ @NotNull annotation
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: jackson_version
+  implementation group: 'joda-time', name: 'joda-time', version: joda_version
+  implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: jackson_version
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jackson_version
+
+  api ("org.dom4j:dom4j:$dom4j_version") {
+       exclude group: 'pull-parser'
+       exclude group: 'xpp3'
+  }
+
+  runtimeOnly ("org.dom4j:dom4j:$dom4j_version") {
+       exclude group: 'pull-parser'
+       exclude group: 'xpp3'
+  }
+
+  api group: 'org.locationtech.jts', name: 'jts-core', version: jts_version
+
+  testImplementation group: 'junit', name: 'junit', version: junit_version
+  testImplementation group: 'org.json', name: 'json', version: json_org_version
+  testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+}
+
+shadowJar {
+    archiveBaseName.set("takserver-plugins")
+    archiveClassifier.set("all")
+    archiveVersion.set(version)
+}
+
+sourceSets {
+    main {
+        java {
+	     srcDir 'build/src-generated'
+        }
+    }
+}
+
+configurations {
+    all {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+    }
+    runtimeOnly {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+}

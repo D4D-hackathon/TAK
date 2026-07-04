@@ -1,0 +1,244 @@
+buildscript {
+    dependencies {
+        classpath 'com.netflix.nebula:gradle-ospackage-plugin:' + gradle_ospackage_version
+    }
+}
+
+apply plugin: 'com.netflix.nebula.ospackage'
+apply from: "../utils/utils.gradle"
+
+// Copy scripts
+task copyLauncherScripts(type: Copy) {
+    from project(':takserver-core').file('scripts')
+    into "$buildDir/takArtifacts"
+    exclude 'utils*', 'messaging*', 'API*', 'plugins*', 'retention*', 'takserver.sh'
+}
+
+def preinstall_script= '''\
+echo "takserver-package launcher: preinstall $1 $2"
+
+# Create 'tak' group if it doesn't exist
+if ! getent group tak > /dev/null; then
+    groupadd -r tak
+fi
+
+# Create 'tak' user if it doesn't exist
+if ! id tak > /dev/null 2>&1; then
+    useradd -r -u 1491 -g tak --no-create-home -d /opt/tak tak
+fi
+
+if [ ! -f /etc/debian_version ]; then
+
+''' +  _installer_sections.backup_config + '''
+
+fi
+'''
+
+// rpm postinstall script
+def postinstall_script_launcher = '''\
+echo "takserver-package launcher: postinstall $1 $2"
+
+# Add tak user if it doesn't already exist.
+set +e
+uid=`id -u tak 2>/dev/null`
+set -e
+if [ -z "$uid" ] ; then
+    # User id 1491 is arbitrary
+    echo "Adding 'tak' user"
+    useradd tak -r -u 1491 --no-create-home -d /opt/tak
+fi
+
+chown tak:tak /opt/tak
+
+chmod 644 /opt/tak/logging-restrictsize.xml
+chmod 544 /opt/tak/*.bat
+chmod 544 /opt/tak/*.sh
+
+chmod 544 /opt/tak/config/*.sh
+chmod u+w /opt/tak/config/takserver-config.sh
+cp /opt/tak/config/takserver-config.sh /opt/tak
+chown -f tak:tak /opt/tak/takserver-config.sh 2>/dev/null
+
+chmod 544 /opt/tak/messaging/*.sh
+chmod u+w /opt/tak/messaging/takserver-messaging.sh
+cp /opt/tak/messaging/takserver-messaging.sh /opt/tak
+chown -f tak:tak /opt/tak/takserver-messaging.sh 2>/dev/null
+
+chmod 544 /opt/tak/API/*.sh
+chmod u+w /opt/tak/API/takserver-api.sh
+cp /opt/tak/API/takserver-api.sh /opt/tak
+chown -f tak:tak /opt/tak/takserver-api.sh 2>/dev/null
+
+chmod 544 /opt/tak/takserver-plugins.sh
+chmod u+w /opt/tak/takserver-plugins.sh
+chown -f tak:tak /opt/tak/takserver-plugins.sh 2>/dev/null
+
+chmod 544 /opt/tak/retention/*.sh
+chmod u+w /opt/tak/retention/takserver-retention.sh
+cp /opt/tak/retention/takserver-retention.sh /opt/tak
+chown -f tak:tak /opt/tak/takserver-retention.sh 2>/dev/null
+
+chmod 500 /opt/tak/certs/*.sh
+chmod 600 /opt/tak/certs/cert-metadata.sh
+
+chown root:root /opt/tak/config/takserver-config
+chmod 755 /opt/tak/config/takserver-config
+cp /opt/tak/config/takserver-config /etc/init.d
+rm -rf /opt/tak/config
+
+chown root:root /opt/tak/messaging/takserver-messaging
+chmod 755 /opt/tak/messaging/takserver-messaging
+cp /opt/tak/messaging/takserver-messaging /etc/init.d
+rm -rf /opt/tak/messaging
+
+chown root:root /opt/tak/API/takserver-api
+chmod 755 /opt/tak/API/takserver-api
+cp /opt/tak/API/takserver-api /etc/init.d
+rm -rf /opt/tak/API
+
+chown root:root /opt/tak/launcher/takserver
+chown root:root /opt/tak/launcher/takserver-noplugins
+chown root:root /opt/tak/takserver-plugins
+
+chown root:root  /opt/tak/retention/takserver-retention
+chmod 755 /opt/tak/retention/takserver-retention
+cp /opt/tak/retention/takserver-retention /etc/init.d
+
+''' + _installer_sections.restore_config + '''
+
+chown -fR tak:tak /opt/tak/conf
+chown -fR tak:tak /opt/tak/mission-archive
+rm -rf /opt/tak/retention
+
+chmod 755 /opt/tak/launcher/takserver
+chmod 755 /opt/tak/launcher/takserver-noplugins
+chmod 755 /opt/tak/takserver-plugins
+
+cp /opt/tak/launcher/takserver /etc/init.d
+cp /opt/tak/launcher/takserver-noplugins /etc/init.d
+cp /opt/tak/takserver-plugins /etc/init.d
+rm -rf /opt/tak/launcher
+rm -rf /opt/tak/takserver-plugins
+
+
+chmod 755 /opt/tak/utils
+mkdir -p /opt/tak/logs
+chown tak:tak /opt/tak/logs
+chmod 755 /opt/tak/logs
+if [ -f "/opt/tak/TAKIgniteConfig.xml" ]; then
+    chown -f tak:tak /opt/tak/TAKIgniteConfig.xml 2>/dev/null
+fi
+if [ -f "/opt/tak/CoreConfig.xml" ]; then
+    chown -f tak:tak /opt/tak/CoreConfig.xml 2>/dev/null
+fi
+mkdir -p /opt/tak/iconsets
+chown -fR tak:tak /opt/tak/iconsets
+mkdir -p /opt/tak/webcontent/webtak-plugins/plugins
+if [ ! -f /opt/tak/webcontent/webtak-plugins/webtak-manifest.json ]; then 
+\techo -e "{\\n\\t\\"plugins\\": [], \\n\\t\\"iconSets\\": []\\n}" > /opt/tak/webcontent/webtak-plugins/webtak-manifest.json
+fi
+chown -fR tak:tak /opt/tak/webcontent
+mkdir -p /opt/tak/logs
+chown tak:tak /opt/tak/logs
+mkdir -p /opt/tak/lib
+chown tak:tak /opt/tak/lib
+
+# rename old tomcat if it exists
+if [ -f "/opt/tak/apache-tomcat" ]; then
+    mv /opt/tak/apache-tomcat /opt/tak/apache-tomcat_NO_LONGER_USED >/dev/null 2>&1
+fi
+
+# extract takserver.war on Debian based installs
+if [ -f /etc/debian_version ]; then
+    sh /opt/tak/setup-for-extracted-war.sh
+fi
+''' + takserver_systemd_setup_script + '''
+cat <<- "EOF"
+
+TAK SERVER SOFTWARE LICENSE AGREEMENT
+
+Distribution Statement A: Approved for public release; distribution is unlimited.
+
+----
+
+IMPORTANT: If you are going to use a database, make sure you copy the generated database password from /opt/tak/CoreConfig.example.xml on the database machine to your CoreConfig on this machine.
+
+By default, TAK Server requires a keystore and truststore (X.509 certificates). Follow the instructions in Appendix B of the configuration guide to create these certificates.
+
+After generating certificates, use the following command to register an admin account:
+> sudo java -jar /opt/tak/utils/UserManager.jar certmod -A /opt/tak/certs/files/admin.pem
+
+Using Firefox or Chrome on this computer add the admin certificate to the local browser trust and browse to this address to verify keystore and truststore configuration:
+ 
+http://localhost:8443
+
+Follow the instructions in the Installation section of the configuration guide to complete the setup process.
+
+EOF
+'''
+
+ospackage {
+    packageName = 'takserver-core'
+    version = takversion
+    release = takreleaserpm
+    os = LINUX
+    user = _user
+    permissionGroup = _permission_group
+    packageGroup = _package_group
+    packageDescription = _package_description
+    license = _license
+    url = _url
+    summary = _summary
+
+    preInstall preinstall_script
+    preUninstall _preuninstall_script
+    postInstall postinstall_script_launcher
+    postUninstall _postuninstall_script
+
+    from ("$buildDir/takArtifacts") {
+        into 'opt/tak'
+        fileMode = 444
+        dirMode = 755
+    }
+}
+
+task prePackage(type: Copy) { task ->
+    with takserverCommonSpec(task)
+	with copyFullPluginManagerSpec(task)
+    with copyFullRetentionServiceSpec(task)
+    with copyCoreConfigExampleSpec()
+    with copyConfigScriptsSpec()
+    with copyMessagingScriptsSpec()
+    with copyAPIScriptsSpec()
+
+    // Ideally deconfliction would be done, but that requires more time
+    duplicatesStrategy DuplicatesStrategy.INCLUDE
+    destinationDir = file("$buildDir/takArtifacts")
+
+
+    // TODO: Fix this gradle-detected dependency that probably shouldn't be
+    dependsOn(':takserver-cluster:copyClusterConfig',
+            ':takserver-cluster:copyClusterProperties',
+            ':takserver-cluster:moveCoreConfig')
+}
+prePackage.dependsOn copyLauncherScripts
+
+buildRpm.dependsOn prePackage
+
+buildDeb.dependsOn prePackage
+
+buildRpm {
+    requires('java-17-openjdk-devel')
+    obsoletes('takserver-launcher')
+    obsoletes('takserver-messaging')
+    obsoletes('takserver-api')
+}
+
+// TODO: add deb package dependencies here
+buildDeb {
+  requires('openjdk-17-jdk')
+  obsoletes('takserver-launcher')
+  obsoletes('takserver-messaging')
+  obsoletes('takserver-api')
+}
+

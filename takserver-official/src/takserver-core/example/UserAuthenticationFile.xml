@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<UserAuthenticationFile xmlns="http://bbn.com/marti/xml/bindings">
+    <User identifier="cloudtak" password="$2a$10$ZvX01xETKBpjPPdfO1E/SeE7Vf0uS4eBlCfnDArYVbeMwmzS.0dN6" passwordHashed="true" role="ROLE_ADMIN">
+        <groupList>__ANON__</groupList>
+    </User>
+    <User identifier="admin" fingerprint="2F:0D:88:47:73:2A:CB:A1:01:43:44:F9:63:A3:E8:66:6C:4A:A0:FD:A5:7B:3C:B1:82:2A:8B:5D:21:A0:BC:47" passwordHashed="false" role="ROLE_ADMIN">
+        <groupList>__ANON__</groupList>
+    </User>
+</UserAuthenticationFile>

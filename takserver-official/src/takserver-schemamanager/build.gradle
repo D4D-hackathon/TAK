@@ -1,0 +1,75 @@
+import proguard.gradle.ProGuardTask
+
+apply plugin: 'application'
+
+// must be specified here due to plugin ordering
+mainClassName = 'com.bbn.tak.schema.SchemaManager'
+
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'maven-publish'
+
+buildscript {
+    dependencies {
+      classpath 'net.sf.proguard:proguard-gradle:' + gradle_proguard_version
+    }
+}
+
+dependencies {
+  implementation (project(':takserver-common')) {
+  	  exclude group: 'io.grpc', module: 'grpc-netty'
+	  exclude group: 'io.netty', module: 'netty-tcnative-boringssl-static'
+	  exclude group:  'io.netty', module: 'netty-transport-native-epoll'
+	  exclude group: 'org.apache.ignite'
+	  exclude group: 'org.springframework'
+          exclude group: 'com.google.protobuf'
+	  exclude group: 'commons-beanutils'
+}
+
+  implementation 'org.apache.commons:commons-lang3:' + commons_lang_version
+  implementation group: 'org.flywaydb', name: 'flyway-core', version: flyway_version
+  implementation group: 'com.beust', name: 'jcommander', version: jcommander_version
+  implementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+  implementation group: 'org.postgresql', name: 'postgresql', version: postgres_version
+  implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4j_version
+  implementation group: 'com.zaxxer', name: 'HikariCP', version: hikaricp_version
+  implementation group: 'xerces', name: 'xercesImpl', version: xerces_version
+  
+  implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: jakarta_xml_bind_api_version
+}
+
+
+shadowJar {
+    mainClassName = 'com.bbn.tak.schema.SchemaManager'
+    
+    archiveBaseName.set("schemamanager")
+    archiveClassifier.set("uber")
+    archiveVersion.set(version)
+}
+
+jar {
+    enabled = false
+}
+
+task copyJar (type: Copy, dependsOn: shadowJar) {
+  from file('build/libs')
+  include 'schemamanager-' + version + '-uber.jar'
+  into "$buildDir/cluster"
+  rename('schemamanager-' + version + '-uber.jar', 'SchemaManager.jar')
+}
+
+task copyScripts (type: Copy, dependsOn: copyJar) {
+  from file('scripts')
+  include 'setupRDS.sh'
+  include 'pollRDS.py'
+  into "$buildDir/cluster"
+}
+
+task setupCluster (type: Copy, dependsOn: copyScripts) {}
+
+clean {
+    doFirst {
+        delete '$buildDir/cluster'
+    }
+}
+
+group = 'tak'

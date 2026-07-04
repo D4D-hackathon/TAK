@@ -1,0 +1,113 @@
+buildscript {
+    dependencies {
+      classpath('org.springframework.boot:spring-boot-gradle-plugin:' + spring_boot_version)
+    }
+}
+
+import java.nio.file.Files
+import java.nio.file.Paths
+
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+
+group = 'tak'
+
+test {
+
+    testLogging.showStandardStreams = true
+
+    // display logging output
+    onOutput { descriptor, event -> logger.lifecycle(event.message) }
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir 'build/src-generated'
+    }
+  }
+}
+
+bootJar {
+    enabled = true
+
+    manifest {
+      attributes 'Main-Class': 'org.springframework.boot.loader.launch.PropertiesLauncher'
+    }
+}
+
+jar {
+    enabled = false
+}
+
+dependencies {
+
+  implementation group: 'xerces', name: 'xercesImpl', version: xerces_version
+
+  implementation ("org.dom4j:dom4j:$dom4j_version") {
+       exclude group: 'pull-parser'
+       exclude group: 'xpp3'
+  }
+
+  implementation group: 'ch.qos.logback', name: 'logback-core', version: logback_version
+
+  // imported in order to exclude pull-parser from transitive dom4j dependency in takserver-plugins
+//  implementation ("org.dom4j:dom4j:$dom4j_version") {
+//       exclude group: 'pull-parser'
+//  }
+
+  implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4j_version
+  implementation group: 'org.slf4j', name: 'log4j-over-slf4j', version: slf4j_version
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: log4j_api_version
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-to-slf4j', version: log4j_api_version
+
+  // required for audit log custom logging layout
+  implementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+  implementation group: 'ch.qos.logback.contrib', name: 'logback-jackson', version: logback_jackson_version
+  implementation group: 'ch.qos.logback.contrib', name: 'logback-json-classic', version: logback_jackson_version
+  // https://mvnrepository.com/artifact/org.codehaus.janino/janino License: BSD 3-Clause
+  // required for conditional processing of logback configuration
+  implementation group: 'org.codehaus.janino', name: 'janino', version: janino_version
+
+  implementation(project(':takserver-common')) {
+    exclude group: 'io.micrometer', module:'micrometer-registry-cloudwatch'
+    exclude group: 'pull-parser'
+    exclude group: 'xpp3'
+  }
+
+  implementation group: 'com.h2database', name: 'h2', version: h2_version
+
+
+  // apache ignite (cache and distributed service grid)
+  implementation group: 'org.apache.ignite', name: 'ignite-spring', version: ignite_version
+  implementation group: 'org.apache.ignite', name: 'ignite-kubernetes', version: ignite_version
+  implementation group: 'org.apache.ignite', name: 'ignite-slf4j', version: ignite_version
+
+   // nats message queue
+  implementation group: 'io.nats', name: 'jnats', version: nats_version
+
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: spring_boot_version
+//  implementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: spring_boot_version
+//  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-jdbc', version: spring_boot_version
+  implementation group: 'org.springframework', name: 'spring-context'
+//  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-jdbc'
+//  implementation group: 'com.zaxxer', name: 'HikariCP', version: hikaricp_version
+
+  implementation group: 'org.postgresql', name: 'postgresql', version: postgres_version
+
+  implementation group: 'org.hibernate.orm', name: 'hibernate-spatial', version: hibernate_version
+
+    testImplementation group: 'junit', name: 'junit', version: junit_version
+  testImplementation group: 'org.mockito', name: 'mockito-core', version: mockito_version
+  testImplementation("org.springframework.boot:spring-boot-starter-test:$spring_boot_version") {
+    exclude group: "com.vaadin.external.google", module:"android-json"
+  }
+
+  testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+  
+  implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: jakarta_xml_bind_api_version
+
+}
+
+

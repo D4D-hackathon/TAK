@@ -1,0 +1,74 @@
+<app-toolbar></app-toolbar>
+<div class="wrapper">
+<div class="col" style="margin-left: 5px;">
+
+  <!-- Nodes section -->
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <span>Nodes</span>
+    </div>
+
+    <div *ngFor="let node of graphNodes" class="drag-drawflow" draggable="true" (dragstart)="drag($event)" [attr.data-node]="node.id">
+      <img [attr.width]="node.image_width" [attr.height]="node.image_height" [style.marginRight.px]="node.marginRight" [style.marginLeft.px]="node.marginLeft" src="{{node.image}}">
+      <span>{{node.title}}</span>
+    </div>
+  </div>
+
+  <!-- Edge filtering section -->
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <span>Edge Filtering</span>
+    </div>
+
+    <div class="controls">
+      <select id="connectionFilter" [(ngModel)]="selectedNodeFilter" (ngModelChange)="onSelectedNodeFilter()">
+        <option value="Show All Edges">Show All Edges</option>
+        <option *ngFor="let node of availableNodes" [ngValue]="node">{{ node.federation.stringId }}</option>
+      </select>
+
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="fullyHideEdges"
+          (ngModelChange)="onSelectedNodeFilter()"
+        />
+        Hide Filtered Edges
+      </label>
+    </div>
+    <div class="controls">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="hideEdgeText"
+          (ngModelChange)="onHideEdgeText()"
+        />
+        Hide Edge Text
+      </label>
+    </div>
+  </div>
+</div>
+
+
+  <div class="col-right">
+    <div class="menu">
+      <ul>
+        <li class="selected">Policy</li>
+      </ul>
+    </div>
+    <div id="drawflow" (drop)="drop($event)" (dragover)="allowDrop($event)">
+      <div class="btn-clear" (click)="onClear()">Clear</div>
+      <div class="btn-lock">
+        <i id="lock" class="fas fa-lock" onclick="editor.editor_mode='fixed'; changeMode('lock');"></i>
+        <i id="unlock" class="fas fa-lock-open" onclick="editor.editor_mode='edit'; changeMode('unlock');"
+          style="display:none;"></i>
+      </div>
+      <div class="bar-zoom">
+        <i class="fas fa-search-minus" (click)="onZoomOut()"></i>
+        <i class="fas fa-search" (click)="onZoomReset()"></i>
+        <i class="fas fa-search-plus" (click)="onZoomIn()"></i>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- <div id="dynamic-component-container" style="display: none;"></div> -->
+<ng-container #dynamic_loader></ng-container>

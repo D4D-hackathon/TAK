@@ -1,0 +1,69 @@
+apply plugin: 'java-library'
+
+dependencies {
+
+  // use protobuf generated code from takserver-protobuf project
+  api project(':takserver-protobuf')
+
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: log4j_api_version
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-to-slf4j', version: log4j_api_version
+  implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4j_version
+  implementation group: 'org.slf4j', name: 'log4j-over-slf4j', version: slf4j_version
+
+  //api 'javax.xml.bind:jaxb-api:' + jaxb_api_version
+  api group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: jakarta_xml_bind_api_version
+
+  //implementation 'javax.activation:activation:' + javax_activation_version
+
+  // for netty performance, put javassist on the classpath
+  implementation group: 'org.javassist', name: 'javassist', version: javassist_version
+
+  // guava
+  implementation group: 'com.google.guava', name: 'guava', version: guava_version
+
+  // jackson
+  api group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: jackson_version
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jackson_version
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jackson_version
+
+  // opencsv
+  implementation group: 'com.opencsv', name: 'opencsv', version: opencsv_version
+
+  implementation 'org.dom4j:dom4j:2.0.0'
+  implementation group: 'commons-codec', name: 'commons-codec', version: commons_codec_version
+
+  // ROL
+  api project(':takserver-fig-core:rol')
+
+}
+
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+// This should be fixed in  Gradle 7.2 according to
+// https://github.com/gradle/gradle/issues/4505, but that's a larger task than
+// A five minute work-around.
+idea {
+  module {
+    // Not using generatedSourceDirs because of
+    // https://discuss.gradle.org/t/support-for-intellij-2016/15294/8
+    sourceDirs += file("${projectDir}/build/generated/source/proto/main/java")
+    sourceDirs += file("${projectDir}/build/generated/source/proto/main/grpc")
+  }
+}
+
+/*sourceSets {
+  main {
+    java {
+      srcDir 'build/generated/source/proto/main/grpc'
+      srcDir 'build/generated/source/proto/main/java'
+    }
+  }
+}*/
+
+clean {
+  doFirst {
+    delete 'bin'
+  }
+}
+

@@ -1,0 +1,256 @@
+buildscript {
+    dependencies {
+        classpath 'com.netflix.nebula:gradle-ospackage-plugin:' + gradle_ospackage_version
+    }
+}
+
+apply plugin: 'com.netflix.nebula.ospackage'
+apply from: "../utils/utils.gradle"
+
+// RPM pre-install script.
+def preinstall_script_federation_hub = '''\
+
+mkdir -p /opt/tak/federation-hub
+
+mkdir -p /opt/tak/federation-hub/policies
+
+# try to backup policies
+if [ -d "/opt/tak/federation-hub/policies" ] ; then
+    timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+    backup_root="/opt/tak/federation-hub/backup-policies"
+    backup_dir="$backup_root/$timestamp"
+
+    echo "Backing up /opt/tak/federation-hub/policies to $backup_dir"
+    mkdir -p "$backup_dir"
+    cp -fr /opt/tak/federation-hub/policies/* "$backup_dir"/
+fi
+
+# Stop the federation hub if it is still running.
+set +e
+pkill -9 -f federation-hub-broker.jar
+pkill -9 -f federation-hub-policy.jar
+pkill -9 -f federation-hub-ui.war
+pkill -9 -f federation-hub-plugin-manager.jar
+set -e
+
+if service --status-all | grep -Fq 'federation-hub'; then
+  systemctl stop federation-hub
+fi
+
+# Add tak user if it doesn't already exist.
+set +e
+uid=`id -u tak 2>/dev/null`
+set -e
+if [ -z "$uid" ] ; then
+    # User id 1491 is arbitrary
+    echo "Adding 'tak' user"
+    useradd tak -r -u 1491 --no-create-home -d /opt/tak
+fi
+
+# try to backup configs
+if [ -d "/opt/tak/federation-hub/configs" ] ; then
+    echo "Backing up /opt/tak/federation-hub/configs to /opt/tak/federation-hub/backup-configs"
+    mkdir -p /opt/tak/federation-hub/backup-configs
+    cp -fr /opt/tak/federation-hub/configs/* /opt/tak/federation-hub/backup-configs/
+fi
+
+'''
+
+// RPM post-install script.
+def postinstall_script_federation_hub = '''\
+chown -R tak:tak /opt/tak
+
+# set defaults
+if [ ! -d "/opt/tak/federation-hub/configs" ] ; then
+    mkdir -p /opt/tak/federation-hub/configs
+    cp -fR /opt/tak/federation-hub/default-configs/* /opt/tak/federation-hub/configs/
+fi
+
+# copy only files that don't exist yet
+cp -rnv /opt/tak/federation-hub/default-configs/* /opt/tak/federation-hub/configs/
+
+
+chown -fR tak:tak /opt/tak/federation-hub/configs
+
+# Set permissions on selinux configuration files and scripts.
+chmod 544 /opt/tak/federation-hub/*.sh
+
+# Set permissions on configuration files and scripts.
+chmod 644 /opt/tak/federation-hub/configs/*.xml 
+chmod 644 /opt/tak/federation-hub/configs/*.yml
+
+chmod 544 /opt/tak/federation-hub/scripts/*.sh
+chmod u+w /opt/tak/federation-hub/scripts/*.sh
+
+chmod 544 /opt/tak/federation-hub/scripts/db/*.sh
+chmod u+w /opt/tak/federation-hub/scripts/db/*.sh
+
+# Set permissions on certificate scripts.
+chmod 500 /opt/tak/federation-hub/certs/*.sh
+chmod 600 /opt/tak/federation-hub/certs/cert-metadata.sh
+
+# Put init scripts into place.
+chown root:root /opt/tak/federation-hub/scripts/federation-hub
+chown root:root /opt/tak/federation-hub/scripts/federation-hub-broker
+chown root:root /opt/tak/federation-hub/scripts/federation-hub-policy
+chown root:root /opt/tak/federation-hub/scripts/federation-hub-ui
+chown root:root /opt/tak/federation-hub/scripts/federation-hub-plugin-manager
+chmod 755 /opt/tak/federation-hub/scripts/federation-hub
+chmod 755 /opt/tak/federation-hub/scripts/federation-hub-broker
+chmod 755 /opt/tak/federation-hub/scripts/federation-hub-policy
+chmod 755 /opt/tak/federation-hub/scripts/federation-hub-ui
+chmod 755 /opt/tak/federation-hub/scripts/federation-hub-plugin-manager
+cp /opt/tak/federation-hub/scripts/federation-hub /etc/init.d
+cp /opt/tak/federation-hub/scripts/federation-hub-broker /etc/init.d
+cp /opt/tak/federation-hub/scripts/federation-hub-policy /etc/init.d
+cp /opt/tak/federation-hub/scripts/federation-hub-ui /etc/init.d
+cp /opt/tak/federation-hub/scripts/federation-hub-plugin-manager /etc/init.d
+
+
+# Set up logging directory.
+mkdir -p /opt/tak/federation-hub/logs
+chown tak:tak /opt/tak/federation-hub/logs
+chmod 755 /opt/tak/federation-hub/logs
+
+chown -R tak:tak /opt/tak
+
+cat <<- "EOF"
+
+TAK SERVER FEDERATION HUB SOFTWARE LICENSE AGREEMENT
+
+Distribution Statement A: Approved for public release; distribution is unlimited.
+
+----
+
+For secure operation, the Federation Hub requires a keystore and truststore (for X.509 certificates).
+Follow the instructions in Appendix B of the configuration guide to create these certificates.
+
+Enable adminstrative access for a user to the configuration interface:
+
+sudo java -jar /opt/tak/federation-hub/jars/federation-hub-manager.jar path/to/cert.pem
+
+Using Firefox or Chrome on this computer, browse to this address to access the configuration interface:
+https://localhost:9100/index.html
+
+Log-in with the administrative certificate enabled above.
+
+Follow the instructions in the Installation section of the configuration guide to complete the setup process.
+
+EOF
+''' + federation_hub_systemd_setup_script
+
+// RPM post-uninstall script.
+def postuninstall_script_federation_hub = '''\
+case "$1" in
+ 0|remove)
+        # Delete user if TAK server is not running.
+        if [ `service --status-all | grep -Fc 'takserver-messaging'` -eq 0 ] && \
+           [ `service --status-all | grep -Fc 'takserver-api'` -eq 0 ] && \
+           [ `service --status-all | grep -Fc 'takserver-config'` -eq 0 ]
+        then
+            echo "Deleting tak user"
+            userdel tak
+        fi
+        systemctl stop federation-hub >/dev/null 2>&1
+        systemctl disable federation-hub >/dev/null 2>&1
+        rm /etc/init.d/federation-hub-broker
+        rm /etc/init.d/federation-hub-policy
+        rm /etc/init.d/federation-hub-ui
+        rm /etc/init.d/federation-hub-plugin-manager
+        rm /etc/init.d/federation-hub
+        echo "Removing federation-hub.service file"
+        sudo rm -f /etc/systemd/system/federation-hub.service
+        ;;
+ 1|upgrade)
+        # This is an upgrade, do nothing.
+        :
+        ;;
+esac
+
+'''
+
+ospackage {
+    packageName = 'takserver-fed-hub'
+    version = takversion
+    release = takreleaserpm
+    os = 'LINUX'
+    user = 'tak'
+    permissionGroup = 'tak'
+    packageGroup = 'Applications/Internet'
+    packageDescription = '''\
+The Federation Hub is an optional companion to the Team Awareness Kit (TAK) server.
+It allows for the federation of TAK data across the administrative and trust
+boundaries of different networks participating in a TAK deployment. It can be run
+with or without a co-located TAK server.
+'''
+    license = '(c)2013-2021 Raytheon BBN. Licensed to US Government with unlimited rights.'
+    url = 'https://tak.gov'
+    summary = 'Team Awareness Kit (TAK) Federation Hub'
+
+    preInstall preinstall_script_federation_hub
+    postInstall postinstall_script_federation_hub
+    postUninstall postuninstall_script_federation_hub
+
+    from("$buildDir/takArtifacts") {
+        exclude 'configs/'
+        into '/opt/tak'
+        fileMode = 444
+        dirMode = 755
+    }
+}
+
+task prePackage(type: Copy) { task ->
+    with copyFullFedhubSpec(task, false)
+    destinationDir file("$buildDir/takArtifacts")
+}
+
+buildRpm.dependsOn prePackage
+buildDeb.dependsOn prePackage
+
+buildRpm {
+    requires('java-17-openjdk-devel')
+}
+
+buildDeb {
+    requires('openjdk-17-jdk')
+}
+
+task createFedhubDockerLogDir() {
+    doFirst {
+        mkdir "$buildDir/takDockerDirs/tak/federation-hub/logs"
+    }
+}
+
+task createFedhubDockerPoliciesDir() {
+    doFirst {
+        mkdir "$buildDir/takDockerDirs/tak/federation-hub/policies"
+    }
+}
+
+task constructFedhubDockerZip(type: Zip) { Task task ->
+    dependsOn createFedhubDockerLogDir, createFedhubDockerPoliciesDir
+
+	duplicatesStrategy = DuplicatesStrategy.FAIL
+
+    archiveFileName.set("takserver-fedhub-docker-${version}.zip")
+	destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+
+    into('takserver-fedhub-docker-' + version)
+
+    with copyFullFedhubSpec(task, true).into('tak')
+    with copyVersionFileSpec(task).into('tak')
+    from("$buildDir/takDockerDirs/")
+    from(rootProject.file('docs')) {
+        include 'README_fedhub.md', 'README_fedhub_docker.md'
+        rename 'README_fedhub.md', 'README.md'
+    }
+    from(project(':takserver-core').file('scripts/certs')) {
+        rename('(.*)', 'certs/$1')
+    }
+
+    from(project(':federation-common').file('docker')) {
+        include 'Dockerfile.fedhub', 'Dockerfile.fedhub-db'
+        rename '(.*)', 'docker/$1'
+    }
+
+}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" data-ng-app="metricsManager">
+<head>
+	<meta charset="utf-8">
+	<title>Metrics Dashboard</title>
+	<link rel="icon" type="image/x-icon" href="../favicon.ico" />
+
+	<!-- Optional styles -->
+	<link rel="stylesheet" href="../tablesorter/style.css" />
+	<link rel="stylesheet" href="../jquery/jquery-ui.css" />
+	<link rel="stylesheet" href="../css/bootstrap-theme.min.css" />
+	<link rel="stylesheet" href="../css/bootstrap.min.css" />
+
+	<!-- Scripts for legacy AngularJS shell -->
+	<script src="../jquery/jquery-3.5.0.js"></script>
+	<script src="../jquery/jquery-ui.min.js"></script>
+	<script src="../lib/angular/angular.min.js"></script>
+	<script src="../lib/angular/angular-route.min.js"></script>
+	<script src="../lib/angular/angular-resource.min.js"></script>
+	<script src="../lib/angular/angular-messages.min.js"></script>
+
+	<!-- Your AngularJS app -->
+	<script src="js/app.js"></script>
+	<script src="js/controllers.js"></script>
+	<script src="js/services.js"></script>
+
+	<style>
+		html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #1c1e26;
+        }
+
+        .content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .iframe-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        #iframe-container {
+            width: 100%;
+            border: none;
+            display: block;
+        }
+
+        .sidebar-menu a {
+            font-size: 16px !important;
+        }
+
+        .sidebar-menu {
+            font-family: Arial, sans-serif !important;
+        }
+	</style>
+</head>
+
+<body>
+
+<div id="overlay-navbar" data-ng-include="'../menubar.html'"></div>
+
+<div class="content">
+	<div class="iframe-wrapper">
+		<iframe
+				id="iframe-container"
+				src="./browser/index.html"
+		></iframe>
+	</div>
+</div>
+
+<div id="overlay-footer" data-ng-include="'../footer.jsp'"></div>
+
+<script>
+	window.addEventListener("DOMContentLoaded", () => {
+        const overlay = document.getElementById("overlay-navbar");
+        const footer = document.getElementById("overlay-footer");
+        const iframe = document.getElementById("iframe-container");
+
+        function adjustIframePosition() {
+            if (overlay && footer && iframe) {
+                const overlayHeight = overlay.offsetHeight;
+                const footerHeight = footer.offsetHeight;
+
+                iframe.style.marginTop = `${overlayHeight}px`;
+                iframe.style.marginBottom = `${footerHeight}px`;
+                iframe.style.height = `calc(100vh - ${overlayHeight + footerHeight}px)`;
+            }
+        }
+
+        // Call on load
+        adjustIframePosition();
+
+        // Recalculate on resize in case layout changes
+        window.addEventListener("resize", adjustIframePosition);
+    });
+</script>
+
+
+</body>
+</html>

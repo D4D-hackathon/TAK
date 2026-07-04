@@ -1,0 +1,467 @@
+
+
+package com.bbn.marti.groups;
+
+import java.io.Serializable;
+import java.security.cert.CertificateParsingException;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
+
+import javax.naming.NamingException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
+
+import com.google.common.base.Strings;
+
+import io.jsonwebtoken.JwtException;
+
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
+
+import com.bbn.marti.config.Auth.Ldap;
+import com.bbn.marti.config.Input;
+import com.bbn.marti.remote.exception.NotFoundException;
+import com.bbn.marti.remote.exception.RevokedException;
+import com.bbn.marti.remote.exception.TakException;
+import com.bbn.marti.remote.groups.AuthCallback;
+import com.bbn.marti.remote.groups.AuthResult;
+import com.bbn.marti.remote.groups.AuthStatus;
+import com.bbn.marti.remote.groups.AuthenticatedUser;
+import com.bbn.marti.remote.groups.ConnectionType;
+import com.bbn.marti.remote.groups.Direction;
+import com.bbn.marti.remote.groups.Group;
+import com.bbn.marti.remote.groups.GroupManager;
+import com.bbn.marti.remote.groups.User;
+import com.bbn.marti.remote.util.RemoteUtil;
+import com.bbn.marti.remote.util.X509UsernameExtractor;
+import com.bbn.marti.service.DistributedSubscriptionManager;
+import com.bbn.marti.service.Resources;
+import com.bbn.marti.remote.config.CoreConfigFacade;
+import com.bbn.marti.remote.util.SpringContextBeanForApi;
+import com.bbn.marti.util.CommonUtil;
+import com.bbn.marti.xml.bindings.Role;
+import com.bbn.marti.xml.bindings.UserAuthenticationFile;
+import com.bbn.tak.tls.TakCert;
+import com.bbn.tak.tls.repository.TakCertRepository;
+
+import tak.server.cache.ActiveGroupCacheHelper;
+
+
+/*
+ * 
+ * X509 Client cert authenticator
+ * 
+ */
+public class X509Authenticator extends AbstractAuthenticator implements Serializable {
+    
+    private static final long serialVersionUID = -4317122669577006008L;
+
+    Logger logger = LoggerFactory.getLogger(X509Authenticator.class);
+    
+    private static X509Authenticator instance;
+
+    ActiveGroupCacheHelper activeGroupCacheHelper;
+
+    TakCertRepository takCertRepository;
+
+    CommonUtil commonUtil;
+
+    Ldap ldapConf = CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().getLdap();
+
+    private final X509UsernameExtractor usernameExtractor = new X509UsernameExtractor(
+            CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().getDNUsernameExtractorRegex());
+    
+
+    public static synchronized X509Authenticator getInstance() {
+        if (instance == null) {
+            instance = new X509Authenticator(
+                    SpringContextBeanForApi.getSpringContext().getBean(GroupManager.class),
+                    SpringContextBeanForApi.getSpringContext().getBean(ActiveGroupCacheHelper.class),
+                    SpringContextBeanForApi.getSpringContext().getBean(TakCertRepository.class),
+                    SpringContextBeanForApi.getSpringContext().getBean(CommonUtil.class));
+        }
+        
+        return instance;
+    }
+    
+    public X509Authenticator(GroupManager groupManager, ActiveGroupCacheHelper activeGroupCacheHelper, TakCertRepository takCertRepository, CommonUtil commonUtil) {
+
+        this.groupManager = groupManager;
+   	    this.activeGroupCacheHelper = activeGroupCacheHelper;
+   	    this.takCertRepository = takCertRepository;
+        this.commonUtil = commonUtil;
+
+        groupManager.registerAuthenticator("X509", this);
+    }
+    
+    @Override
+    public void authenticate(@NotNull User user, @NotNull AuthCallback cb) {
+        
+        auth(user, null);
+        
+        // can't fail
+        cb.authenticationReturned(user, AuthStatus.SUCCESS);
+    }
+    
+    @Override
+    public AuthResult authenticate(User user) {
+        
+        return new AuthResult(AuthStatus.SUCCESS, auth(user, null));
+    }
+    
+    public AuthStatus authenticate(User user, Input input) {
+        
+        auth(user, input);
+    
+        return AuthStatus.SUCCESS;
+    }
+    
+    private User auth(User user, Input input) {
+	
+        try {
+
+        	if (user.getCert() == null) {
+        		throw new NotFoundException("X509 Certificate not found in user object");
+        	}
+        	
+            String certFingerprint = RemoteUtil.getInstance().getCertSHA256Fingerprint(user.getCert());
+
+        	TakCert cert = null;
+            if (CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509CheckRevocation() ||
+                    CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509TokenAuth()) {
+                cert = takCertRepository.findOneByHash(certFingerprint);
+                if (cert != null && cert.getRevocationDate() != null) {
+                    throw new RevokedException("Attempt to use revoked certificate : " +
+                            cert.getSubjectDn());
+                }
+            }
+
+            if (CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509TokenAuth() &&
+                    cert != null && cert.token != null && cert.token.length() > 0) {
+                user.setToken(cert.token);
+                try {
+                    groupManager.authenticate("oauth", user);
+                } catch (InvalidBearerTokenException | JwtException e) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("{} {} ", e.getMessage(), cert.token);
+                    }
+                    throw new TakException();
+                }
+
+                if (input == null) {
+                    AuthenticatorUtil.setUserRolesBasedOnRequestPort(user, logger, true);
+                }
+
+                return user;
+            }
+
+        	if (logger.isDebugEnabled()) {
+        		logger.debug("cert fingerprint: " + certFingerprint);
+        	}
+
+            if (user instanceof AuthenticatedUser) {
+                AuthenticatedUser auser = (AuthenticatedUser) user;
+                
+                String username = usernameExtractor.extractUsername(auser.getCert());
+
+                if (auser.getId().compareToIgnoreCase(username) != 0 ||
+                        auser.getLogin().compareToIgnoreCase(username) != 0) {
+
+                    if (Strings.isNullOrEmpty(username)) {
+                        throw new TakException("empty username extracted from cert");
+                    }
+
+                	if (logger.isDebugEnabled()) {
+                		logger.debug("username extracted from X509 cert", username);
+                	}
+
+                    // make a new user object with the identifier from the file
+                    user = new AuthenticatedUser(username, auser.getConnectionId(), auser.getAddress(), auser.getCert(), username, "", "", auser.getConnectionType()); // no password or uid
+                }
+            }
+
+            switch (CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().getDefault().toLowerCase(Locale.ENGLISH)) {
+            case "file": 
+            case "ldap":
+
+                String username = user.getId();
+
+                boolean useGroupCache = false;
+
+                // enable group cache if enabled by the admin in CoreConfig and the client certificate
+                // contains the channels ext key usage attribute (using Challenge Password OID)
+                if (CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509UseGroupCache()) {
+                    try {
+                        useGroupCache =
+                                user.getCert().getExtendedKeyUsage().contains("1.2.840.113549.1.9.7") ||
+                                !CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509UseGroupCacheRequiresExtKeyUsage();
+                    } catch (CertificateParsingException cpe) {
+                        logger.error("exception getting cert's extendedKeyUsage", cpe);
+                    }
+                }
+
+                if (logger.isDebugEnabled()) {
+                    logger.error("useGroupCache : " + useGroupCache);
+                }
+
+                for (UserAuthenticationFile.User fileUser : FileAuthenticator.getInstance().getAllUsers()) {
+                    if ((fileUser.getFingerprint() != null && fileUser.getFingerprint().equals(certFingerprint)) ||
+                            (fileUser.getIdentifier() != null && fileUser.getIdentifier().equals(username)))
+                    {
+                        // if the file user has a role, set it on the user
+                        if (fileUser.getRole() != null) {
+                            user.getAuthorities().add(fileUser.getRole().toString());
+                        }
+                        
+                        if (logger.isDebugEnabled() || !user.getConnectionType().equals(ConnectionType.WEB)) {
+                            logger.debug("file user cert fingerprint match for user " + fileUser.getIdentifier());
+                            logger.debug("groups: " + fileUser.getGroupList());
+                        }
+
+                        Set<Group> groups = null;
+
+                        if (fileUser.getRole() == Role.ROLE_ADMIN &&
+                                CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth()
+                                        .isX509AssignAdminAllGroups()) {
+                            Set<Group> allGroups = commonUtil.getAllInOutGroups();
+                            if (allGroups != null && !allGroups.isEmpty()) {
+                                groups = allGroups;
+                            }
+                        }
+
+                        if (groups == null) {
+                            groups = FileAuthenticator.getGroups(fileUser);
+                        }
+
+                        if (useGroupCache) {
+                            Set<Group> hydrated = new ConcurrentSkipListSet<>();
+                            for (Group group : groups) {
+                                hydrated.add(groupManager.hydrateGroup(group));
+                            }
+
+                            if (activeGroupCacheHelper.assignGroupsCheckCache(hydrated, user, username)) {
+                                // notify the user that their cache has been updated
+                                try {
+                                    DistributedSubscriptionManager.getInstance().sendGroupsUpdatedMessage(username, null);
+                                } catch (Exception e) {
+                                    if (logger.isDebugEnabled()) {
+                                        logger.debug("exception calling sendGroupsUpdatedMessage!", e);
+                                    }
+                                }
+                            }
+
+                        } else {
+                            groupManager.updateGroups(user, groups);
+                        }
+                    }
+                }
+
+                // Assign LDAP groups for this users based on LDAP lookup by username.
+                // if the LDAP authenticator is configured, use it to assign groups for the user, using the service credentials. Can be disabled by setting the x509groups option to false.
+                try {
+                    if (ldapConf != null && CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509Groups() && ldapConf.isX509Groups()) {
+
+                        try {
+                            String cn = usernameExtractor.extractUsername(user.getCert());
+
+                            if (!Strings.isNullOrEmpty(cn)) {
+                                username = cn;
+                            }
+                        } catch (Exception e) {
+                            logger.debug("exception extracting CN from cert", e);
+                        }
+                        
+                        try {
+                        	if (logger.isDebugEnabled()) {                        		
+                        		logger.debug("username: " + username);
+                        	}
+
+                            Map<String, String> groupInfo = LdapAuthenticator.getInstance()
+                                    .getGroupInfoBySearch(username, ldapConf.isLoginWithEmail());
+
+                            if (logger.isDebugEnabled()) {
+                                logger.debug("group info for " + username + " : " + groupInfo);
+                            }
+
+                            //
+                            // Multi-level filtering scheme for x509 authenticated input ports. filtergroups present
+                            // on the x509 input will serve as a filter to limit groups that are returned from ldap
+                            //
+                            if (input != null && input.getFiltergroup() != null && input.getFiltergroup().size() > 0) {
+
+                                // iterate over groups returned from ldap
+                                Iterator<Map.Entry<String, String>> it = groupInfo.entrySet().iterator();
+                                while (it.hasNext()) {
+                                    String nextGroup = it.next().getValue();
+
+                                    // check to see if the ldap group is found in the filtergroup list
+                                    boolean found = false;
+                                    for (String filterGroup : input.getFiltergroup()) {
+                                        found = nextGroup.contains(filterGroup);
+                                        if (found) {
+                                            break;
+                                        }
+                                    }
+
+                                    // dont assign the ldap group if not present in the filter group list
+                                    if (!found) {
+                                        it.remove();
+                                    }
+                                }
+                            }
+
+                            boolean readOnly = false;
+                            if (!groupInfo.isEmpty()) {
+                                if (useGroupCache) {
+                                    // extract the set of group names from the ldap search results
+                                    Set<String> groupNames = LdapAuthenticator.getInstance().
+                                            getGroupNamesFromSearchResults(groupInfo);
+
+                                    // get a set of Group objects for the current ldap results
+                                    Set<Group> ldapGroups = new ConcurrentSkipListSet<>();
+                                    readOnly = LdapAuthenticator.getInstance().groupNamesToGroups(
+                                            groupNames, ldapGroups);
+
+                                    if (activeGroupCacheHelper.assignGroupsCheckCache(ldapGroups, user, username)) {
+                                        // notify the user that their cache has been updated
+                                        try {
+                                            DistributedSubscriptionManager.getInstance().sendGroupsUpdatedMessage(username, null);
+                                        } catch (Exception e) {
+                                            if (logger.isDebugEnabled()) {
+                                                logger.debug("exception calling sendGroupsUpdatedMessage!", e);
+                                            }
+                                        }
+                                    }
+
+                                } else {
+                                    readOnly = LdapAuthenticator.getInstance().assignGroups(
+                                            groupInfo, user);
+                                }
+                            }
+
+                            if (logger.isDebugEnabled()) {
+                                logger.debug("X509 / LDAP group assignment complete for " + user.getId());
+                            }
+
+                            if (ldapConf.isX509AddAnonymous() &&
+                                    CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509AddAnonymous()) {
+                            	doAnonAssignment(user, readOnly);
+                            }
+
+                        } catch (NamingException e) {
+                            logger.warn("exception connecting to LDAP", e);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("exception searching for ldap groups for user " + user, e);
+                }
+
+                if (!useGroupCache) {
+                    try {
+                        if (groupManager.getGroups(user).isEmpty()) {
+
+                            if (CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().isX509GroupsDefaultRDN()) {
+                                doRDNAssignment(user);
+                            }
+
+                            if (groupManager.getGroups(user).isEmpty()) {
+                                String msg = "no groups assigned to user " + user + " doing anonymous assignment";
+
+                                if (logger.isDebugEnabled()) {
+
+                                    logger.debug(msg);
+                                }
+
+                                doAnonAssignment(user);
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.error("exception assigning anonymous groups for user " + user, e);
+                    }
+                }
+            	
+                if (input == null) {
+                	AuthenticatorUtil.setUserRolesBasedOnRequestPort(user, logger, true);
+                }
+
+                break;
+            default:
+                throw new UnsupportedOperationException("default auth method " + CoreConfigFacade.getInstance().getRemoteConfiguration().getAuth().getDefault() + " not supported");
+            }
+        } catch (IllegalStateException e) {
+
+            logger.error("IllegalStateException in x509Authenticator.auth", e);
+
+            if (input != null && input.isAuthRequired()) {
+            	
+            	if (logger.isDebugEnabled()) {
+            		logger.debug("Authentication is required for input " + input.getName() + " Not adding user to anon group.");
+            	}
+            	
+            } else {
+                
+                String msg = "FileAuthenticator not configured - unable to assign groups based on cert fingerprint. Defaulting to anon group membership only, and ROLE_ANONYMOUS authority."; 
+            	
+                if (logger.isDebugEnabled()) {
+            		logger.debug(msg);
+                }
+                
+                doAnonAssignment(user);
+                
+                throw new TakException(msg, e); // propagate this to the web level so that fallback to marti-users.xml can occur
+            }
+        }
+        
+        return user;
+    }
+
+    private void doRDNAssignment(User user) {
+        try {
+            StringBuilder rdnBuilder = new StringBuilder();
+            LdapName ldapName = new LdapName(user.getCert().getSubjectX500Principal().getName());
+            for (Rdn rdn : ldapName.getRdns()) {
+                if (rdn.getType().compareToIgnoreCase("CN") != 0) {
+                    rdnBuilder.append(rdn.getValue());
+                    rdnBuilder.append("-");
+                }
+            }
+
+            if (rdnBuilder.length() > 0) {
+                String rdnGroup = rdnBuilder.toString();
+                groupManager.addUserToGroup(user, new Group(rdnGroup, Direction.IN));
+                groupManager.addUserToGroup(user, new Group(rdnGroup, Direction.OUT));
+            } else {
+                logger.error("failed to extract RDNs from cert!");
+            }
+
+        } catch (Exception e) {
+            logger.error("exception in doRDNAssignment", e);
+        }
+    }
+
+    // Using the superclass only for its thread pool
+    @Override
+    public void authenticateAsync(@NotNull final User user, @NotNull final AuthCallback cb) {
+
+        // execute auth callback just once for the dummy case - no periodic updates
+        Resources.authThreadPool.execute(new Runnable() {
+            public void run() {
+                try {
+                    authenticate(user, cb);
+                } catch (Exception e) {
+                    logger.error("authenticateAsync failed.", e);
+                }
+            }
+        });        
+    }
+
+    @Override
+    public String toString() {
+        return "X509Authenticator [groupManager=" + groupManager + "]";
+    }
+}

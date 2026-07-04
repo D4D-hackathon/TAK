@@ -1,0 +1,187 @@
+
+buildscript {
+  dependencies {
+    classpath "org.openapitools:openapi-generator-gradle-plugin:6.6.0"
+  }
+}
+
+apply plugin: 'war'
+apply plugin: 'org.openapi.generator'
+
+// these options are needed due to use of interal JDK crypto implementation, such as sun.security.pkcs10.PKCS10
+compileJava {
+    options.compilerArgs += ["-XDignore.symbol.file", "-Xdoclint:none", "-Xlint:none", "-nowarn"]
+    options.fork = true
+}
+
+javadoc {
+  exclude 'com/bbn/tak/tls/**'
+}
+
+dependencies {
+
+  implementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: httpcomponents_version
+  implementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5-fluent', version: httpcomponents_version
+
+  implementation group: 'org.dom4j', name: 'dom4j', version: dom4j_version
+
+  providedCompile group: 'javax.servlet', name: 'javax.servlet-api', version: servlet_api_version
+  //providedCompile group: 'javax.mail', name: 'javax.mail-api', version: mail_api_version
+  implementation group: 'jakarta.mail', name: 'jakarta.mail-api', version: jakarta_mail_api_version
+  providedCompile group: 'org.apache.tomcat', name: 'tomcat-catalina', version: tomcat_version
+
+  // swagger
+  implementation group: 'org.springdoc', name: 'springdoc-openapi-starter-webmvc-ui', version: springdoc_version
+  
+  implementation(project(':takserver-common'))
+  implementation project(':federation-common')
+  
+
+  // cloudwatch metrics
+//  api group: 'io.awspring.cloud', name: 'spring-cloud-starter-aws', version: spring_cloud_starter_version // TODO replace with current
+  implementation group: 'io.awspring.cloud', name: 'spring-cloud-aws-dependencies', version: spring_cloud_aws_version
+
+  implementation group: 'io.micrometer', name: 'micrometer-registry-cloudwatch2', version: micrometer_version
+  implementation group: 'io.micrometer', name: 'micrometer-core', version: micrometer_version
+
+  implementation group: 'commons-codec', name: 'commons-codec', version: commons_codec_version
+  implementation group: 'org.dom4j', name: 'dom4j', version: dom4j_version
+  implementation group: 'org.owasp.antisamy', name: 'antisamy', version: antisamy_version
+  implementation group: 'org.apache.xmlgraphics', name: 'batik-css', version: batik_version
+  implementation group: 'org.codehaus.castor', name: 'castor-xml', version: castor_version
+  implementation group: 'com.fasterxml', name: 'classmate', version: classmate_version
+  api group: 'org.apache.commons', name: 'commons-collections4', version: commons_collections_version
+  implementation group: 'commons-fileupload', name: 'commons-fileupload', version: commons_fileupload_version
+  api group: 'commons-io', name: 'commons-io', version: commons_io_version
+  implementation group: 'commons-validator', name: 'commons-validator', version: commons_validator_version
+  implementation group: 'org.apache.commons', name: 'commons-pool2', version: commons_pool_version
+  api group: 'org.owasp.esapi', name: 'esapi', version: esapi_version
+  
+  
+  //implementation group: 'org.hibernate', name: 'hibernate-core', version: hibernate_version
+  //implementation group: 'org.hibernate', name: 'hibernate-entitymanager', version: hibernate_version
+  //implementation group: 'org.hibernate', name: 'hibernate-spatial', version: hibernate_version
+  //implementation group: 'org.hibernate', name: 'hibernate-validator', version: hibernate_validator_version
+  
+  implementation group: 'org.hibernate.orm', name: 'hibernate-core', version: hibernate_version
+  implementation group: 'org.hibernate.orm', name: 'hibernate-entitymanager', version: hibernate_entitymanager_version
+  implementation group: 'org.hibernate.orm', name: 'hibernate-spatial', version: hibernate_version
+  implementation group: 'org.hibernate.validator', name: 'hibernate-validator', version: hibernate_validator_version
+
+  //implementation group: 'org.hibernate.javax.persistence', name: 'hibernate-jpa-2.1-api', version: hibernate_jpa_version
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: jackson_version
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jackson_version
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jackson_version
+  implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: jackson_version
+  //implementation group: 'org.jboss', name: 'jandex', version: jandex_version
+  implementation group: 'org.javassist', name: 'javassist', version: javassist_version
+  //implementation group: 'javax.inject', name: 'javax.inject', version: javax_inject_version
+  //implementation group: 'org.eclipse.persistence', name: 'javax.persistence', version: javax_persistence_version
+  //implementation group: 'org.jboss.logging', name: 'jboss-logging', version: jboss_logging_version
+  //implementation group: 'org.jboss.spec.javax.transaction', name: 'jboss-transaction-api_1.2_spec', version: javax_transaction_version
+  implementation group: 'org.slf4j', name: 'jcl-over-slf4j', version: slf4j_version
+  api group: 'com.beust', name: 'jcommander', version: jcommander_version
+  implementation group: 'com.googlecode.json-simple', name: 'json-simple', version: json_simple_version
+  implementation group: 'com.google.code.gson', name: 'gson', version: gson_version
+  //implementation group: 'javax.ws.rs', name: 'jsr311-api', version: jsr311_version
+  implementation group: 'org.slf4j', name: 'jul-to-slf4j', version: slf4j_version
+  implementation group: 'org.gnu.inet', name: 'libidn', version: libidn_version
+
+  // required for audit log custom logging filter
+  implementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+  implementation group: 'ch.qos.logback.contrib', name: 'logback-jackson', version: logback_jackson_version
+  implementation group: 'ch.qos.logback.contrib', name: 'logback-json-classic', version: logback_jackson_version
+  // https://mvnrepository.com/artifact/org.codehaus.janino/janino License: BSD 3-Clause
+  // required for conditional processing of logback configuration
+  implementation group: 'org.codehaus.janino', name: 'janino', version: janino_version
+
+
+  api group: 'org.postgresql', name: 'postgresql', version: postgres_version
+  implementation group: 'org.ocpsoft.prettytime', name: 'prettytime', version: prettytime_version
+  implementation group: 'org.simpleframework', name: 'simple-xml', version: simplexml_version
+  implementation group: 'org.springframework', name: 'spring-aop', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-aspects', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-beans', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-context', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-context-support', version: spring_version
+  implementation group: 'org.springframework.data', name: 'spring-data-commons', version: spring_boot_version
+  implementation group: 'org.springframework.data', name: 'spring-data-jpa', version: spring_boot_version
+  implementation group: 'org.springframework', name: 'spring-expression', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-beans', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-jdbc', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-tx', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-messaging', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-orm', version: spring_version
+  api group: 'org.springframework', name: 'spring-oxm', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-web', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-webmvc', version: spring_version
+  implementation group: 'org.springframework', name: 'spring-websocket', version: spring_version
+  implementation group: 'org.springframework.retry', name: 'spring-retry', version: spring_retry_version
+  implementation group: 'org.springframework.security', name: 'spring-security-core', version: spring_security_version
+  implementation group: 'org.springframework.security', name: 'spring-security-config', version: spring_security_version
+  implementation group: 'org.springframework.security', name: 'spring-security-messaging', version: spring_security_version
+  implementation group: 'org.springframework.security', name: 'spring-security-web', version: spring_security_version
+  implementation group: 'org.springframework.security', name: 'spring-security-jwt', version: spring_security_jwt_version
+  implementation group: 'org.springframework.security', name: 'spring-security-oauth2-core', version: spring_security_version
+  implementation group: 'org.springframework.security', name: 'spring-security-oauth2-authorization-server', version: spring_security_oauth2_authorization_server_version
+
+  implementation ("org.igniterealtime:tinder:$tinder_version") {
+  	  // Added to exclude dom4j 1.6.1, a transitive dependency
+  	  exclude group: 'dom4j', module: 'dom4j'
+  }
+  implementation group: 'gov.nasa', name: 'worldwind', version: worldwind_version
+  implementation group: 'xerces', name: 'xercesImpl', version: xerces_version
+  implementation group: 'xpp3', name: 'xpp3_min', version: xpp3_version
+  implementation group: 'com.sun.xml.ws', name: 'jaxws-rt', version: jaxwsrt_version
+  api group: 'org.json', name: 'json', version: json_org_version
+  api group: 'io.jsonwebtoken', name: 'jjwt', version: jsonwebtoken_version
+  //implementation group: 'org.igniterealtime.whack', name: 'core', version: whack_version
+  implementation ("org.igniterealtime.whack:core:$whack_version") {
+  	  // Added to exclude dom4j 1.6.1, a transitive dependency
+  	  exclude group: 'dom4j', module: 'dom4j'
+      exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+      exclude group: 'org.eclipse.jetty', module: 'jetty-webapp'
+  }
+
+  implementation group: 'org.apache.ignite', name: 'ignite-spring-cache-ext', version: ignite_spring_cache_version
+
+
+  //implementation 'javax.xml.bind:jaxb-api:' + jaxb_api_version
+  implementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: jakarta_xml_bind_api_version
+  implementation group: 'jakarta.xml.ws', name: 'jakarta.xml.ws-api', version: jakarta_xml_ws_api_version
+  implementation group: 'jakarta.xml.soap', name: 'jakarta.xml.soap-api', version: jakarta_xml_soap_api_version
+  
+  //implementation 'javax.activation:activation:' + javax_activation_version
+  implementation('org.glassfish.jaxb:jaxb-runtime:' + jaxb_glassfish_version)
+
+  implementation group: 'uk.m0nom', name: 'javaapiforkml', version: javaapiforkml_version
+
+  implementation group: 'com.squareup.okhttp3', name: 'okhttp', version: okhttp3_version
+ 
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir("$buildDir/generated/ism/api/src/main/java")
+    }
+  }
+}
+
+openApiGenerate {
+  generatorName = "java"
+  inputSpec = "$projectDir/src/main/java/com/bbn/marti/classification/service/ism-lib.json".toString()
+  outputDir = "$buildDir/generated/ism/api".toString()
+  apiPackage = "org.ism.api"
+  invokerPackage = "org.ism.invoker"
+  modelPackage = "org.ism.model"
+  configOptions = [
+          dateLibrary: "java17",
+          annotationLibrary: "none",
+          library: "resttemplate",
+          openApiNullable : "false",
+          useJakartaEe: "true"
+  ]
+}
+
+compileJava.dependsOn tasks.openApiGenerate

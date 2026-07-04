@@ -1,0 +1,142 @@
+apply plugin: 'maven-publish'
+
+configurations {
+  jaxb
+}
+dependencies {
+
+  api(project(':takserver-plugins')) {
+    exclude group: 'dom4j'
+    exclude group: 'pull-parser'
+    exclude group: 'xpp3'
+  }
+
+  runtimeOnly(project(':takserver-plugins')) {
+    exclude group: 'dom4j'
+    exclude group: 'pull-parser'
+    exclude group: 'xpp3'
+  }
+
+
+/*  implementation ("org.dom4j:dom4j:$dom4j_version") {
+       exclude group: 'pull-parser'
+       exclude group: 'xpp'
+  }
+
+  runtime ("org.dom4j:dom4j:$dom4j_version") {
+       exclude group: 'pull-parser'
+       exclude group: 'xpp'
+  }   */
+
+
+  api group: 'io.netty', name: 'netty-transport-native-epoll', version: netty_version, classifier: 'linux-x86_64'
+  api group: 'io.netty', name: 'netty-transport-native-epoll', version: netty_version, classifier: 'linux-aarch_64'
+
+  implementation 'org.apache.commons:commons-lang3:' + commons_lang_version
+  implementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: log4j_api_version
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-to-slf4j', version: log4j_api_version
+  implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4j_version
+
+// try to exclude unwanted xml parsers - we want to use Xerces
+
+
+/*runtimeClasspath - Runtime classpath of source set 'main'.
++--- org.dom4j:dom4j:2.1.3
+|    +--- jaxen:jaxen:1.1.6 -> 1.2.0
+|    +--- javax.xml.stream:stax-api:1.0-2
+|    +--- net.java.dev.msv:xsdlib:2013.6.1
+|    |    \--- relaxngDatatype:relaxngDatatype:20020414
+|    +--- javax.xml.bind:jaxb-api:2.2.12 -> 2.3.1
+|    |    \--- javax.activation:javax.activation-api:1.2.0
+|    +--- pull-parser:pull-parser:2
+|    \--- xpp3:xpp3:1.1.4c*/
+
+
+  implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: log4j_api_version
+
+  implementation group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: jaxb_glassfish_version
+  implementation group: 'org.glassfish.jaxb', name: 'jaxb-core', version: jaxb_glassfish_version
+  //implementation group: 'javax.activation', name: 'activation', version: javax_activation_version
+
+  jaxb group: 'org.glassfish.jaxb', name: 'jaxb-xjc', version: jaxb_glassfish_version
+  jaxb group: 'org.glassfish.jaxb', name: 'jaxb-core', version: jaxb_glassfish_version
+  jaxb group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: jaxb_glassfish_version
+  //jaxb group: 'javax.activation', name: 'activation', version: javax_activation_version
+  jaxb group: 'jakarta.activation', name: 'jakarta.activation-api', version: jakarta_activation_api_version
+
+  api group: 'com.google.guava', name: 'guava', version: guava_version
+  api group: 'com.intellij', name: 'annotations', version: intellij_annotations_version // IntelliJ @NotNull annotation
+  implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: jackson_version
+  implementation group: 'jaxen', name: 'jaxen', version: jaxen_version
+  implementation group: 'joda-time', name: 'joda-time', version: joda_version
+  implementation group: 'org.slf4j', name: 'slf4j-api', version: slf4j_version
+  implementation group: 'ch.qos.logback.contrib', name: 'logback-json-classic', version: logback_jackson_version
+  api group: 'org.springframework', name: 'spring-context', version: spring_version
+
+  api group: 'commons-io', name: 'commons-io', version: commons_io_version
+
+  // apache ignite (cache and distributed service grid)
+  api group: 'org.apache.ignite', name: 'ignite-indexing', version: ignite_version
+  api group: 'org.apache.ignite', name: 'ignite-slf4j', version: ignite_version
+  api group: 'org.apache.ignite', name: 'ignite-kubernetes', version: ignite_version
+  api group: 'org.apache.ignite', name: 'ignite-spring-cache-ext', version: ignite_spring_cache_version
+
+  api group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: caffeine_version
+
+  api group: 'com.zaxxer', name: 'HikariCP', version: hikaricp_version
+
+  api project(':takserver-fig-core')
+
+  testImplementation group: 'junit', name: 'junit', version: junit_version
+  testImplementation group: 'org.json', name: 'json', version: json_org_version
+  // grab the xerces sax parser
+  testImplementation group: 'xerces', name: 'xercesImpl', version: xerces_version
+  testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: logback_version
+  
+  implementation group: 'jakarta.persistence', name: 'jakarta.persistence-api', version: jakarta_persistence_api_version
+
+  implementation group: 'org.springframework.security', name: 'spring-security-core', version: spring_security_version
+  api group: 'com.beust', name: 'jcommander', version: jcommander_version
+
+  implementation group: 'uk.m0nom', name: 'javaapiforkml', version: javaapiforkml_version
+}
+
+sourceSets {
+    main {
+        java {
+	     srcDir 'build/src-generated'
+        }
+    }
+}
+
+task jaxb {
+  inputs.dir("${projectDir}/src/main/xsd")
+  outputs.dir("${buildDir}/src-generated")
+  System.setProperty('javax.xml.accessExternalSchema', 'all')
+  def jaxbTargetDir = file("${buildDir}/src-generated")
+  doLast {
+    jaxbTargetDir.mkdirs()
+    ant.taskdef(name: 'xjc', classname: 'com.sun.tools.xjc.XJCTask', classpath: configurations.jaxb.asPath)
+    ant.jaxbTargetDir = jaxbTargetDir
+    ant.xjc(
+            destdir: jaxbTargetDir) {
+      schema(dir: "${projectDir}/src/main/xsd", includes: '*.xsd')
+      binding(dir: "${projectDir}/src/main/xsd", includes: '*.xjb')
+      episodesDir = "${buildDir}/episodes"
+      arg(value: '-verbose')
+      arg(value: '-extension')
+    }
+  }
+}
+compileJava.dependsOn jaxb
+
+task igniteExtensions(type: Jar) {
+    archiveBaseName.set('ignite-extensions')
+    destinationDirectory.set(layout.buildDirectory.dir('libs'))
+
+    // Include only the specific class file from the compiled classes
+    from(sourceSets.main.output) {
+        include 'tak/server/ignite/cache/IgniteCacheSqlHelperFunctions.class'
+    }
+}
