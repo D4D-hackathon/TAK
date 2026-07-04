@@ -11,7 +11,10 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TAK_DIR="${TAK_DIR:-$ROOT_DIR/takserver-official/src/takserver-core/example}"
-TAK_WAR="${TAK_WAR:-../build/libs/takserver-core-5.7-RELEASE-14.war}"
+TAK_WAR="${TAK_WAR:-}"
+if [[ -z "$TAK_WAR" ]]; then
+    TAK_WAR="$(ls -1 "$TAK_DIR"/../build/libs/takserver-core-*.war 2>/dev/null | sort -V | tail -n 1)"
+fi
 
 if [[ ! -d "$TAK_DIR" ]]; then
     echo "TAK Server example directory not found: $TAK_DIR" >&2
@@ -19,8 +22,8 @@ if [[ ! -d "$TAK_DIR" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$TAK_DIR/$TAK_WAR" ]]; then
-    echo "TAK Server WAR not found: $TAK_DIR/$TAK_WAR" >&2
+if [[ ! -f "$TAK_WAR" ]]; then
+    echo "TAK Server WAR not found: $TAK_WAR" >&2
     echo "Build it first with: cd $ROOT_DIR/takserver-official/src/takserver-core && ../gradlew clean bootWar bootJar" >&2
     exit 1
 fi
