@@ -113,7 +113,9 @@ export default defineConfig(({ mode }) => {
             format: 'es'
         },
         server: {
+            host: '0.0.0.0',
             port: 8080,
+            allowedHosts: ['liking-unwired-moocher.ngrok-free.dev'],
             proxy: {
                 '/api': {
                     ws: true,
