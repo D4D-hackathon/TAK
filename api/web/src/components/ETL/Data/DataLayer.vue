@@ -91,8 +91,11 @@ async function fetchList() {
                     ':connectionid': Number(route.params.connectionid),
                 },
                 query: {
+                    alarms: false,
                     limit: 100,
                     page: 0,
+                    order: 'asc',
+                    sort: 'name',
                     filter: '',
                     data: Number(route.params.dataid),
                 }

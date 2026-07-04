@@ -21,7 +21,7 @@
         "build:types": "vue-tsc -p tsconfig.build.json",
         "doc": "typedoc --options typedoc.json",
         "build": "vite build",
-        "lint": "eslint --config eslint.config.js ./src/ ./public/ ./plugins/",
+        "lint": "eslint --config eslint.config.js --no-error-on-unmatched-pattern ./src/ ./public/ ./plugins/",
         "test": "vitest run"
     },
     "repository": {
