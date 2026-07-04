@@ -10,8 +10,6 @@ deploy-*.sh
 api/assets/*
 Caddyfile
 .DS_Store
-freetakserver/
-takserver-official/
 
 # Logs
 logs
