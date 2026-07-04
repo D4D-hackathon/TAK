@@ -115,13 +115,18 @@ export default defineConfig(({ mode }) => {
         server: {
             host: '0.0.0.0',
             port: 8080,
-            allowedHosts: ['liking-unwired-moocher.ngrok-free.dev'],
+            allowedHosts: ['liking-unwired-moocher.ngrok-free.dev', '.trycloudflare.com'],
             proxy: {
                 '/api': {
                     ws: true,
                     target: 'http://localhost:5001',
                     changeOrigin: true,
-                }
+                },
+                // 워게임 판정 브리지 (~/backend FastAPI 8000 → ai-agent 엔진)
+                '/wargame': {
+                    target: 'http://localhost:8000',
+                    changeOrigin: true,
+                },
             }
         },
         test: {

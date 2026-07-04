@@ -28,6 +28,8 @@ import { WorkerMessageType, LocationState } from '../base/events.ts';
 import type { WorkerMessage } from '../base/events.ts';
 import Overlay from '../base/overlay-class.ts';
 import OverlayManager from '../base/overlay.ts';
+import { attachWargameInteractions } from '../base/wargame.ts';
+import { useWargameStore } from './wargame.ts';
 import { FeatureVisibility } from './modules/feature-visibility.ts';
 import Subscription from '../base/subscription.ts';
 import { stdurl, server, getRuntimeToken, serverUrl } from '../std.js';
@@ -1079,6 +1081,9 @@ export const useMapStore = defineStore('cloudtak', {
                 this.pitch = map.getPitch()
             })
 
+            // Wargame: 부대 드래그(BLUE)/선택 하이라이트 배선 (프론트 state 전용)
+            attachWargameInteractions(map);
+
             map.on('styleimagemissing', (e) => {
                 void this.icons.onStyleImageMissing(e).catch((error: unknown) => {
                     console.error('styleimagemissing handler failed', {
@@ -1105,6 +1110,17 @@ export const useMapStore = defineStore('cloudtak', {
                     this.radial.cot = undefined;
                     return;
                 }
+
+                // Wargame 부대 클릭 가로채기: 부대는 선택만 하고 기존 radial/CoT 흐름을 타지 않는다.
+                // (clickableLayerMap 필터와 무관하게 최우선 처리)
+                const wargameHit = map.queryRenderedFeatures(e.point)
+                    .filter((f) => f.properties && f.properties.wargame_unit);
+                if (wargameHit.length) {
+                    useWargameStore().selectUnit(String(wargameHit[0].properties.id));
+                    return;
+                }
+                // 부대가 아닌 곳 클릭 → 선택 해제 후 기존 흐름 계속
+                useWargameStore().clearSelection();
 
                 if (this.select.feats) this.select.feats = [];
 

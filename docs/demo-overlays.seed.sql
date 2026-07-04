@@ -210,3 +210,34 @@ SET styles = jsonb_build_array(
 )
 WHERE username = 'cloudtak'
   AND name = 'Layer 3: 통신 불가 구역';
+
+-- 철원 전차대대 6개 (부대 배치). styles=[] 로 두어 프론트가 cotStyles(icons:true)를
+-- 자동 생성 → icon "2525D:<sidc>" 가 milsymbol 군대부호로, callsign 이 라벨로 렌더된다.
+DELETE FROM profile_overlays
+WHERE username = 'cloudtak'
+  AND name = '부대 배치';
+
+INSERT INTO profile_overlays (
+    name,
+    username,
+    pos,
+    type,
+    opacity,
+    visible,
+    styles,
+    mode,
+    mode_id,
+    url
+) VALUES
+(
+    '부대 배치',
+    'cloudtak',
+    13,
+    'geojson',
+    1,
+    true,
+    '[]'::jsonb,
+    'demo',
+    'units-cheorwon',
+    '/demo-layers/units-cheorwon.geojson'
+);

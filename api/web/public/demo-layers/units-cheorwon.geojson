@@ -1,0 +1,144 @@
+{
+  "type": "FeatureCollection",
+  "name": "부대 배치",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "blue-1",
+        "wargame_unit": true,
+        "icon": "2525D:SFGPUCA----K",
+        "callsign": "청군 1전차대대",
+        "name": "청군 1전차대대",
+        "side": "BLUE",
+        "type": "armor",
+        "strength": 44,
+        "posture": "defensive",
+        "sidc": "SFGPUCA----K",
+        "note": "서측 정면 방어. 서쪽 접근로 통제"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.24,
+          38.16
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "blue-2",
+        "wargame_unit": true,
+        "icon": "2525D:SFGPUCA----K",
+        "callsign": "청군 2전차대대",
+        "name": "청군 2전차대대",
+        "side": "BLUE",
+        "type": "armor",
+        "strength": 44,
+        "posture": "defensive",
+        "sidc": "SFGPUCA----K",
+        "note": "동측 정면 방어. 동쪽 접근로 통제"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.37,
+          38.17
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "blue-3",
+        "wargame_unit": true,
+        "icon": "2525D:SFGPUCA----K",
+        "callsign": "청군 3전차대대",
+        "name": "청군 3전차대대",
+        "side": "BLUE",
+        "type": "armor",
+        "strength": 44,
+        "posture": "reserve",
+        "sidc": "SFGPUCA----K",
+        "note": "예비대. 돌파구 발생 시 역습"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.3,
+          38.1
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "red-1",
+        "wargame_unit": true,
+        "icon": "2525D:SHGPUCA----K",
+        "callsign": "홍군 1전차대대",
+        "name": "홍군 1전차대대",
+        "side": "RED",
+        "type": "armor",
+        "strength": 40,
+        "posture": "offensive",
+        "sidc": "SHGPUCA----K",
+        "note": "주공. 서측 축선으로 남하"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.26,
+          38.3
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "red-2",
+        "wargame_unit": true,
+        "icon": "2525D:SHGPUCA----K",
+        "callsign": "홍군 2전차대대",
+        "name": "홍군 2전차대대",
+        "side": "RED",
+        "type": "armor",
+        "strength": 40,
+        "posture": "offensive",
+        "sidc": "SHGPUCA----K",
+        "note": "조공. 동측 축선으로 남하"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.39,
+          38.31
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "red-3",
+        "wargame_unit": true,
+        "icon": "2525D:SHGPUCA----K",
+        "callsign": "홍군 3전차대대",
+        "name": "홍군 3전차대대",
+        "side": "RED",
+        "type": "armor",
+        "strength": 40,
+        "posture": "offensive",
+        "sidc": "SHGPUCA----K",
+        "note": "제2제대. 돌파 확대용 후속"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.32,
+          38.33
+        ]
+      }
+    }
+  ]
+}

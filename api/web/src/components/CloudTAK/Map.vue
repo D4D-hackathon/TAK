@@ -83,6 +83,9 @@
                 @to-location='toLocation'
             />
             <WargameBar />
+            <WargameUnitPanel />
+            <WargameReport />
+            <WargameDecision />
             <div
                 v-if='mapStore.selected.size'
                 class='position-absolute begin-0 text-white cloudtak-bg'
@@ -451,6 +454,9 @@ import BufferInput from './Inputs/BufferInput.vue';
 import { ref, watch, computed, toRaw, onMounted, onBeforeUnmount, useTemplateRef } from 'vue';
 import BottomBar from './BottomBar/BottomBar.vue';
 import WargameBar from './WargameBar.vue';
+import WargameUnitPanel from './WargameUnitPanel.vue';
+import WargameReport from './WargameReport.vue';
+import WargameDecision from './WargameDecision.vue';
 import {useRoute, useRouter } from 'vue-router';
 import ActiveMission from './ActiveMission.vue';
 import Navigating from './Navigating.vue';
