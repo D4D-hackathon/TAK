@@ -1,0 +1,83 @@
+{
+  "type": "FeatureCollection",
+  "name": "Layer 2 - Drone Risk Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Drone Risk Seoul-Gyeonggi",
+        "layer": "Layer 2: Drone Risk Zones",
+        "risk": "high"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [126.78, 37.31],
+          [127.33, 37.28],
+          [127.55, 37.72],
+          [127.2, 38.02],
+          [126.76, 37.87],
+          [126.58, 37.55],
+          [126.78, 37.31]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Drone Risk Gangwon Corridor",
+        "layer": "Layer 2: Drone Risk Zones",
+        "risk": "medium"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [127.72, 37.55],
+          [128.62, 37.48],
+          [128.85, 38.04],
+          [128.28, 38.34],
+          [127.66, 38.05],
+          [127.72, 37.55]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Drone Risk Central Korea",
+        "layer": "Layer 2: Drone Risk Zones",
+        "risk": "medium"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [127.05, 36.25],
+          [127.72, 36.18],
+          [127.92, 36.82],
+          [127.42, 37.08],
+          [126.96, 36.74],
+          [127.05, 36.25]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Drone Risk Southeast Korea",
+        "layer": "Layer 2: Drone Risk Zones",
+        "risk": "low"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [128.58, 35.05],
+          [129.18, 35.04],
+          [129.38, 35.55],
+          [128.95, 35.84],
+          [128.42, 35.55],
+          [128.58, 35.05]
+        ]]
+      }
+    }
+  ]
+}

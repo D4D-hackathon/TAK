@@ -1,0 +1,231 @@
+import cf from '@openaddresses/cloudfriend';
+
+export default {
+    Parameters: {
+        EventsTargetCPUUtilization: {
+            Description: 'Target average CPU utilization percentage for the events service',
+            Type: 'Number',
+            Default: 70
+        },
+        EventsTargetMemoryUtilization: {
+            Description: 'Target average memory utilization percentage for the events service',
+            Type: 'Number',
+            Default: 80
+        }
+    },
+    Resources: {
+        EventsLogs: {
+            Type: 'AWS::Logs::LogGroup',
+            Properties: {
+                LogGroupName: cf.join([cf.stackName, '-events']),
+                RetentionInDays: 7
+            }
+        },
+        EventsTaskRole: {
+            Type: 'AWS::IAM::Role',
+            Properties: {
+                AssumeRolePolicyDocument: {
+                    Version: '2012-10-17',
+                    Statement: [{
+                        Effect: 'Allow',
+                        Principal: {
+                            Service: 'ecs-tasks.amazonaws.com'
+                        },
+                        Action: 'sts:AssumeRole'
+                    }]
+                },
+                Policies: [{
+                    PolicyName: cf.join('-', [cf.stackName, 'api-policy']),
+                    PolicyDocument: {
+                        Statement: [{
+                            Effect: 'Allow',
+                            Action: [
+                                'ssmmessages:CreateControlChannel',
+                                'ssmmessages:CreateDataChannel',
+                                'ssmmessages:OpenControlChannel',
+                                'ssmmessages:OpenDataChannel'
+                            ],
+                            Resource: '*'
+                        },{
+                            Effect: 'Allow',
+                            Action: [
+                                'kms:Decrypt',
+                                'kms:GenerateDataKey'
+                            ],
+                            Resource: [cf.getAtt('KMS', 'Arn')]
+                        },{
+                            Effect: 'Allow',
+                            Resource: [
+                                cf.join(['arn:', cf.partition, ':s3:::', cf.ref('AssetBucket'), '/*'])
+                            ],
+                            Action: [
+                                's3:GetObject',
+                                's3:PutObject',
+                                's3:AbortMultipartUpload',
+                                's3:ListMultipartUploadParts'
+                            ]
+                        },{
+                            Effect: 'Allow',
+                            Action: [
+                                'secretsmanager:Describe*',
+                                'secretsmanager:Get*',
+                                'secretsmanager:List*'
+                            ],
+                            Resource: [
+                                cf.join(['arn:', cf.partition, ':secretsmanager:', cf.region, ':', cf.accountId, ':secret:', cf.stackName, '/*'])
+                            ]
+                        }]
+                    }
+                }]
+            }
+        },
+        EventsTaskDefinition: {
+            Type: 'AWS::ECS::TaskDefinition',
+            DependsOn: ['SigningSecret'],
+            Properties: {
+                Family: cf.join([cf.stackName, '-events']),
+                Cpu: 1024,
+                Memory: 2048,
+                NetworkMode: 'awsvpc',
+                RequiresCompatibilities: ['FARGATE'],
+                Tags: [{
+                    Key: 'Name',
+                    Value: cf.join('-', [cf.stackName, 'events'])
+                }],
+                ExecutionRoleArn: cf.getAtt('ExecRole', 'Arn'),
+                TaskRoleArn: cf.getAtt('EventsTaskRole', 'Arn'),
+                ContainerDefinitions: [{
+                    Name: 'api',
+                    Image: cf.join([cf.accountId, '.dkr.ecr.', cf.region, '.amazonaws.com/tak-vpc-', cf.ref('Environment'), '-cloudtak-api:events-', cf.ref('GitSha')]),
+                    PortMappings: [{
+                        ContainerPort: 5000
+                    }],
+                    Environment: [
+                        { Name: 'SigningSecret', Value: cf.sub('{{resolve:secretsmanager:${AWS::StackName}/api/secret:SecretString::AWSCURRENT}}') },
+                        { Name: 'AWS_REGION', Value: cf.region },
+                        { Name: 'StackName', Value: cf.stackName },
+                        { Name: 'ASSET_BUCKET', Value: cf.ref('AssetBucket') },
+                        { Name: 'API_URL', Value: cf.join(['https://map.', cf.importValue(cf.join(['tak-vpc-', cf.ref('Environment'), '-hosted-zone-name']))]) }
+                    ],
+                    RestartPolicy: {
+                        Enabled: true,
+                        RestartAttemptPeriod: 300
+                    },
+                    LogConfiguration: {
+                        LogDriver: 'awslogs',
+                        Options: {
+                            'awslogs-group': cf.join([cf.stackName, '-events']),
+                            'awslogs-region': cf.region,
+                            'awslogs-stream-prefix': cf.stackName,
+                            'awslogs-create-group': true
+                        }
+                    },
+                    Essential: true
+                }]
+            }
+        },
+        EventsService: {
+            Type: 'AWS::ECS::Service',
+            Properties: {
+                ServiceName: cf.join('-', [cf.stackName, 'events']),
+                Cluster: cf.join(['tak-vpc-', cf.ref('Environment')]),
+                TaskDefinition: cf.ref('EventsTaskDefinition'),
+                LaunchType: 'FARGATE',
+                PropagateTags: 'SERVICE',
+                EnableExecuteCommand: cf.ref('EnableExecute'),
+                HealthCheckGracePeriodSeconds: 300,
+                DesiredCount: 1,
+                NetworkConfiguration: {
+                    AwsvpcConfiguration: {
+                        AssignPublicIp: 'ENABLED',
+                        SecurityGroups: [cf.ref('EventsServiceSecurityGroup')],
+                        Subnets:  [
+                            cf.importValue(cf.join(['tak-vpc-', cf.ref('Environment'), '-subnet-public-a'])),
+                            cf.importValue(cf.join(['tak-vpc-', cf.ref('Environment'), '-subnet-public-b']))
+                        ]
+                    }
+                }
+            }
+        },
+        EventsAutoScalingRole: {
+            Type: 'AWS::IAM::Role',
+            Properties: {
+                AssumeRolePolicyDocument: {
+                    Version: '2012-10-17',
+                    Statement: [{
+                        Effect: 'Allow',
+                        Principal: {
+                            Service: 'application-autoscaling.amazonaws.com'
+                        },
+                        Action: 'sts:AssumeRole'
+                    }]
+                },
+                ManagedPolicyArns: [
+                    cf.join(['arn:', cf.partition, ':iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole'])
+                ]
+            }
+        },
+        EventsScalableTarget: {
+            Type: 'AWS::ApplicationAutoScaling::ScalableTarget',
+            DependsOn: ['EventsService'],
+            Properties: {
+                MinCapacity: 1,
+                MaxCapacity: 10,
+                ResourceId: cf.join([
+                    'service/',
+                    cf.join(['tak-vpc-', cf.ref('Environment')]),
+                    '/',
+                    cf.join('-', [cf.stackName, 'events'])
+                ]),
+                RoleARN: cf.getAtt('EventsAutoScalingRole', 'Arn'),
+                ScalableDimension: 'ecs:service:DesiredCount',
+                ServiceNamespace: 'ecs'
+            }
+        },
+        EventsCPUScalingPolicy: {
+            Type: 'AWS::ApplicationAutoScaling::ScalingPolicy',
+            Properties: {
+                PolicyName: cf.join(['EventsCPUScalingPolicy-', cf.stackName]),
+                PolicyType: 'TargetTrackingScaling',
+                ScalingTargetId: cf.ref('EventsScalableTarget'),
+                TargetTrackingScalingPolicyConfiguration: {
+                    PredefinedMetricSpecification: {
+                        PredefinedMetricType: 'ECSServiceAverageCPUUtilization'
+                    },
+                    ScaleInCooldown: 300,
+                    ScaleOutCooldown: 60,
+                    TargetValue: cf.ref('EventsTargetCPUUtilization')
+                }
+            }
+        },
+        EventsMemoryScalingPolicy: {
+            Type: 'AWS::ApplicationAutoScaling::ScalingPolicy',
+            Properties: {
+                PolicyName: cf.join(['EventsMemoryScalingPolicy-', cf.stackName]),
+                PolicyType: 'TargetTrackingScaling',
+                ScalingTargetId: cf.ref('EventsScalableTarget'),
+                TargetTrackingScalingPolicyConfiguration: {
+                    PredefinedMetricSpecification: {
+                        PredefinedMetricType: 'ECSServiceAverageMemoryUtilization'
+                    },
+                    ScaleInCooldown: 300,
+                    ScaleOutCooldown: 60,
+                    TargetValue: cf.ref('EventsTargetMemoryUtilization')
+                }
+            }
+        },
+        EventsServiceSecurityGroup: {
+            Type: 'AWS::EC2::SecurityGroup',
+            Properties: {
+                Tags: [{
+                    Key: 'Name',
+                    Value: cf.join('-', [cf.stackName, 'events-sg'])
+                }],
+                GroupName: cf.join('-', [cf.stackName, 'events-sg']),
+                GroupDescription: 'No direct access to this security group',
+                VpcId: cf.importValue(cf.join(['tak-vpc-', cf.ref('Environment'), '-vpc'])),
+                SecurityGroupIngress: []
+            }
+        }
+    }
+};

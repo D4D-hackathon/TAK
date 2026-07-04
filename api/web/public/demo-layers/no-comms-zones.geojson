@@ -1,0 +1,82 @@
+{
+  "type": "FeatureCollection",
+  "name": "Layer 3 - No Communications Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "No Comms DMZ South Buffer",
+        "layer": "Layer 3: No Communications Zones",
+        "status": "outage"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [126.55, 37.82],
+          [127.5, 37.78],
+          [127.74, 38.18],
+          [127.2, 38.42],
+          [126.48, 38.21],
+          [126.55, 37.82]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "No Comms Mountain Region",
+        "layer": "Layer 3: No Communications Zones",
+        "status": "degraded"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [128.0, 37.18],
+          [128.72, 37.14],
+          [128.98, 37.67],
+          [128.48, 37.98],
+          [127.88, 37.64],
+          [128.0, 37.18]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "No Comms West Coast",
+        "layer": "Layer 3: No Communications Zones",
+        "status": "outage"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [126.18, 36.3],
+          [126.74, 36.25],
+          [126.95, 36.9],
+          [126.52, 37.14],
+          [126.02, 36.82],
+          [126.18, 36.3]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "No Comms Southern Inland",
+        "layer": "Layer 3: No Communications Zones",
+        "status": "degraded"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [127.55, 35.25],
+          [128.12, 35.2],
+          [128.24, 35.78],
+          [127.74, 36.02],
+          [127.36, 35.67],
+          [127.55, 35.25]
+        ]]
+      }
+    }
+  ]
+}

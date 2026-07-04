@@ -1,0 +1,21 @@
+{
+    "name": "tak-cloudtak",
+    "profile": "coegc",
+    "region": "us-gov-east-1",
+    "tags": [
+        {
+            "Key": "Project",
+            "Value": "cloudtak"
+        },
+        "Owner",
+        "Client"
+    ],
+    "artifacts": {
+        "docker": [
+            "tak-vpc-{{stack}}-cloudtak-api:{{gitsha}}",
+            "tak-vpc-{{stack}}-cloudtak-api:pmtiles-{{gitsha}}",
+            "tak-vpc-{{stack}}-cloudtak-api:events-{{gitsha}}",
+            "tak-vpc-{{stack}}-cloudtak-api:retention-{{gitsha}}"
+        ]
+    }
+}

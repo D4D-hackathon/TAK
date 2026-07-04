@@ -1,0 +1,82 @@
+{
+  "type": "FeatureCollection",
+  "name": "Layer 1 - Boundary Zones",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gyeonggi North Boundary A",
+        "layer": "Layer 1: Boundary Zones",
+        "description": "Synthetic boundary zone for hackathon demo"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [126.72, 37.63],
+          [127.25, 37.62],
+          [127.36, 38.03],
+          [127.05, 38.22],
+          [126.66, 38.05],
+          [126.72, 37.63]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gyeonggi North Boundary B",
+        "layer": "Layer 1: Boundary Zones",
+        "description": "Synthetic boundary zone for hackathon demo"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [127.18, 37.74],
+          [127.68, 37.72],
+          [127.78, 38.11],
+          [127.42, 38.31],
+          [127.08, 38.08],
+          [127.18, 37.74]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gangwon Boundary A",
+        "layer": "Layer 1: Boundary Zones",
+        "description": "Synthetic boundary zone for hackathon demo"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [127.55, 37.46],
+          [128.22, 37.52],
+          [128.31, 37.94],
+          [127.86, 38.15],
+          [127.42, 37.88],
+          [127.55, 37.46]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gangwon Boundary B",
+        "layer": "Layer 1: Boundary Zones",
+        "description": "Synthetic boundary zone for hackathon demo"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [128.22, 37.82],
+          [128.95, 37.9],
+          [129.08, 38.38],
+          [128.45, 38.56],
+          [128.05, 38.21],
+          [128.22, 37.82]
+        ]]
+      }
+    }
+  ]
+}
