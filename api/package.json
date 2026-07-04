@@ -18,7 +18,10 @@
         "migratedb-pre": "npm run lint && git stash && tsc --outDir .",
         "migratedb-commit": "git add migrations/* && git commit -m 'Custom DB Migration'",
         "dev": "tsx watch --ignore web/ index.ts --noevents --nosinks --nogeofence",
-        "prod": "NODE_OPTIONS='--max-old-space-size=6144' node dist/index.js"
+        "prod": "NODE_OPTIONS='--max-old-space-size=6144' node dist/index.js",
+        "takserver:config": "bash scripts/run-takserver.sh config",
+        "takserver:messaging": "bash scripts/run-takserver.sh messaging",
+        "takserver:api": "bash scripts/run-takserver.sh api"
     },
     "engines": {
         "node": ">= 24"
