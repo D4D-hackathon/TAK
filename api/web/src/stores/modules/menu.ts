@@ -114,6 +114,7 @@ export default class MenuManager {
             },
             {
                 key: 'contacts',
+                visibility: 'hidden',
                 label: 'Contacts',
                 route: '/menu/contacts',
                 tooltip: 'Contacts',
@@ -130,6 +131,7 @@ export default class MenuManager {
             },
             {
                 key: 'missions',
+                visibility: 'hidden',
                 label: 'Data Sync',
                 route: '/menu/missions',
                 tooltip: 'Data Sync',
@@ -138,6 +140,7 @@ export default class MenuManager {
             },
             {
                 key: 'packages',
+                visibility: 'hidden',
                 label: 'Data Package',
                 route: '/menu/packages',
                 tooltip: 'Data Packages',
@@ -146,6 +149,7 @@ export default class MenuManager {
             },
             {
                 key: 'channels',
+                visibility: 'hidden',
                 label: 'Channels',
                 route: '/menu/channels',
                 tooltip: 'Channels',
@@ -154,6 +158,7 @@ export default class MenuManager {
             },
             {
                 key: 'videos',
+                visibility: 'hidden',
                 label: 'Videos',
                 route: '/menu/videos',
                 tooltip: 'Videos',
@@ -162,6 +167,7 @@ export default class MenuManager {
             },
             {
                 key: 'chats',
+                visibility: 'hidden',
                 label: 'Chats',
                 route: '/menu/chats',
                 tooltip: 'Chats',
@@ -170,6 +176,7 @@ export default class MenuManager {
             },
             {
                 key: 'routes',
+                visibility: 'hidden',
                 label: 'Routes',
                 route: '/menu/routes',
                 tooltip: 'Routes',
@@ -178,6 +185,7 @@ export default class MenuManager {
             },
             {
                 key: 'files',
+                visibility: 'hidden',
                 label: 'Uploaded Files',
                 route: '/menu/files',
                 tooltip: 'Your Files',
@@ -186,6 +194,7 @@ export default class MenuManager {
             },
             {
                 key: 'imports',
+                visibility: 'hidden',
                 label: 'Imports',
                 route: '/menu/imports',
                 tooltip: 'Imports',
@@ -233,6 +242,7 @@ export default class MenuManager {
             },
             {
                 key: 'history',
+                visibility: 'hidden',
                 label: 'History',
                 route: '/menu/history',
                 tooltip: 'History',
@@ -270,11 +280,11 @@ export default class MenuManager {
                 }
 
                 for (const item of map.values()) {
-                    ordered.push({ ...item, visibility: 'full' });
+                    ordered.push({ ...item, visibility: item.visibility ?? 'full' });
                 }
                 combined = ordered;
             } else {
-                combined = combined.map(item => ({ ...item, visibility: 'full' }));
+                combined = combined.map(item => ({ ...item, visibility: item.visibility ?? 'full' }));
             }
 
             return combined.map((item) => {

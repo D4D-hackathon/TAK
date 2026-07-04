@@ -82,6 +82,7 @@
                 @set-location='setLocation'
                 @to-location='toLocation'
             />
+            <WargameBar />
             <div
                 v-if='mapStore.selected.size'
                 class='position-absolute begin-0 text-white cloudtak-bg'
@@ -449,6 +450,7 @@ import GeoJSONInput from './Inputs/GeoJSONInput.vue';
 import BufferInput from './Inputs/BufferInput.vue';
 import { ref, watch, computed, toRaw, onMounted, onBeforeUnmount, useTemplateRef } from 'vue';
 import BottomBar from './BottomBar/BottomBar.vue';
+import WargameBar from './WargameBar.vue';
 import {useRoute, useRouter } from 'vue-router';
 import ActiveMission from './ActiveMission.vue';
 import Navigating from './Navigating.vue';
